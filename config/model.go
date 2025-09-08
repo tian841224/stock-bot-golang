@@ -2,8 +2,12 @@ package config
 
 type Config struct {
 	// Database
-	DATABASE_URL string `mapstructure:"DATABASE_URL"`
-	DB_LOG_MODE  bool   `mapstructure:"DB_LOG"`
+	DB_HOST     string `mapstructure:"DB_HOST"`
+	DB_PORT     string `mapstructure:"DB_PORT"`
+	DB_USER     string `mapstructure:"DB_USER"`
+	DB_PASSWORD string `mapstructure:"DB_PASSWORD"`
+	DB_NAME     string `mapstructure:"DB_NAME"`
+	DB_LOG_MODE bool   `mapstructure:"DB_LOG"`
 	// Line Bot
 	CHANNEL_ACCESS_TOKEN string `mapstructure:"CHANNEL_ACCESS_TOKEN"`
 	CHANNEL_SECRET       string `mapstructure:"CHANNEL_SECRET"`
