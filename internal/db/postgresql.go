@@ -85,3 +85,15 @@ func createDatabaseIfNotExists(cfg *config.Config) error {
 
 	return nil
 }
+
+// Close 關閉資料庫連線
+func Close() error {
+	if db == nil {
+		return nil
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
+}
