@@ -11,9 +11,10 @@ func LoadConfig() (*Config, error) {
 	var config Config
 
 	// 設定 .env 檔案
-	viper.SetConfigFile("../.env")
+	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
 	viper.AddConfigPath(".")
+	viper.AddConfigPath("..")
 
 	// 嘗試讀取 .env 檔案（如果存在的話）
 	if err := viper.ReadInConfig(); err != nil {
