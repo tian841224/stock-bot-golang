@@ -11,19 +11,30 @@ import (
 
 	"stock-bot/config"
 	"stock-bot/internal/db"
+	"stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {
+
+	// 初始化日誌
+	logger.InitLogger()
+	defer logger.Log.Sync()
+
 	// 載入設定
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		panic(fmt.Sprintf("載入設定失敗: %v", err))
 	}
+	logger.Log.Info("設定載入成功")
 
 	// 初始化資料庫
-	db.InitDB(cfg)
+	if err := db.InitDB(cfg); err != nil {
+		logger.Log.Panic("資料庫初始化失敗", zap.Error(err))
+	}
+	logger.Log.Info("資料庫初始化成功")
 
 	// 建立 Gin 引擎與註冊路由
 	router := gin.Default()
@@ -49,24 +60,46 @@ func main() {
 	}
 
 	// 啟動伺服器（背景）
+	serverErr := make(chan error, 1)
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("啟動 HTTP 伺服器失敗: %v", err))
+			serverErr <- err
 		}
 	}()
+	logger.Log.Info("HTTP 伺服器啟動成功")
+	logger.Log.Info("程式執行中...")
 
-	// 等待終止訊號，優雅關閉
+	// 等待終止訊號或啟動錯誤
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+
+	select {
+	case <-quit:
+		// 繼續往下優雅關閉
+	case err := <-serverErr:
+		logger.Log.Error("啟動 HTTP 伺服器失敗", zap.Error(err))
+		// 立刻以非 0 退出，先同步日誌
+		_ = logger.Log.Sync()
+		os.Exit(1)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		fmt.Printf("伺服器關閉失敗: %v\n", err)
+
+	shutdownErr := server.Shutdown(ctx)
+	if shutdownErr != nil {
+		logger.Log.Error("伺服器關閉失敗", zap.Error(shutdownErr))
 	}
 
-	if err := db.Close(); err != nil {
-		fmt.Printf("資料庫關閉失敗: %v\n", err)
+	dbErr := db.Close()
+	if dbErr != nil {
+		logger.Log.Error("資料庫關閉失敗", zap.Error(dbErr))
+	}
+
+	if shutdownErr != nil || dbErr != nil {
+		// 有關閉錯誤，用非 0 退出；先同步日誌
+		_ = logger.Log.Sync()
+		os.Exit(1)
 	}
 }
