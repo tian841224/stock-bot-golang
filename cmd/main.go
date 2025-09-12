@@ -10,8 +10,11 @@ import (
 	"time"
 
 	"stock-bot/config"
+	"stock-bot/internal/api/linebot"
 	"stock-bot/internal/db"
 	"stock-bot/pkg/logger"
+	linebotInfra "stock-bot/internal/infrastructure/linebot"
+	lineService "stock-bot/internal/service/bot/line"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -43,6 +46,15 @@ func main() {
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "ok"})
 	})
+
+	// 初始化 LINE Bot 依賴並註冊路由
+	botClient, err := linebotInfra.NewBot(*cfg)
+	if err != nil {
+		panic(fmt.Sprintf("初始化 LINE Bot 失敗: %v", err))
+	}
+	service := lineService.NewBotService(botClient)
+	handler := linebot.NewLineBotHandler(service, botClient)
+	linebot.RegisterRoutes(router, handler)
 
 	// 從環境變數讀取埠號，預設 8080
 	port := os.Getenv("PORT")
