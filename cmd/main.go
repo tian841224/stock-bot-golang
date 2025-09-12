@@ -11,10 +11,13 @@ import (
 
 	"stock-bot/config"
 	"stock-bot/internal/api/linebot"
+	"stock-bot/internal/api/tgbot"
 	"stock-bot/internal/db"
-	"stock-bot/pkg/logger"
 	linebotInfra "stock-bot/internal/infrastructure/linebot"
+	tgbotInfra "stock-bot/internal/infrastructure/tgbot"
 	lineService "stock-bot/internal/service/bot/line"
+	tgService "stock-bot/internal/service/bot/tg"
+	"stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -47,7 +50,7 @@ func main() {
 		c.JSON(200, gin.H{"message": "ok"})
 	})
 
-	// 初始化 LINE Bot 依賴並註冊路由
+	// 初始化 LINE Bot 並註冊路由
 	botClient, err := linebotInfra.NewBot(*cfg)
 	if err != nil {
 		panic(fmt.Sprintf("初始化 LINE Bot 失敗: %v", err))
@@ -55,6 +58,15 @@ func main() {
 	service := lineService.NewBotService(botClient)
 	handler := linebot.NewLineBotHandler(service, botClient)
 	linebot.RegisterRoutes(router, handler)
+
+	// 初始化 Telegram Bot 並註冊路由
+	tgClient, err := tgbotInfra.NewBot(*cfg)
+	if err != nil {
+		panic(fmt.Sprintf("初始化 Telegram Bot 失敗: %v", err))
+	}
+	tgSvc := tgService.NewTgService(tgClient.Client)
+	tgHandler := tgbot.NewTgHandler(cfg, tgSvc)
+	tgbot.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
 
 	// 從環境變數讀取埠號，預設 8080
 	port := os.Getenv("PORT")
