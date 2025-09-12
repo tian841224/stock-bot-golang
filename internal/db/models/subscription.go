@@ -19,3 +19,7 @@ type Subscription struct {
 func (Subscription) TableName() string {
 	return "subscriptions"
 }
+
+func init() {
+	RegisterModel(&Subscription{})
+}

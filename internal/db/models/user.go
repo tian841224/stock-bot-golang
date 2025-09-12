@@ -23,3 +23,7 @@ func (u *User) GetUserType() UserType {
 func (User) TableName() string {
 	return "users"
 }
+
+func init() {
+	RegisterModel(&User{})
+}

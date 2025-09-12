@@ -13,3 +13,7 @@ type Watchlist struct {
 func (Watchlist) TableName() string {
 	return "watchlists"
 }
+
+func init() {
+	RegisterModel(&Watchlist{})
+}

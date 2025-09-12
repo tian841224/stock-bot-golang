@@ -65,19 +65,7 @@ func connectDB(cfg *config.Config) error {
 }
 
 func createOrUpdateTable() error {
-	err := db.AutoMigrate(
-		&models.User{},
-		&models.Feature{},
-		&models.Symbols{},
-		&models.Subscription{},
-		&models.SubscriptionSymbol{},
-		&models.Watchlist{},
-		&models.WatchlistItem{},
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return db.AutoMigrate(models.AllModels()...)
 }
 
 // createDatabaseIfNotExists 檢查並建立資料庫

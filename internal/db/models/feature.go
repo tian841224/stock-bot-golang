@@ -11,3 +11,7 @@ type Feature struct {
 func (Feature) TableName() string {
 	return "features"
 }
+
+func init() {
+	RegisterModel(&Feature{})
+}

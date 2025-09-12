@@ -31,3 +31,7 @@ const (
 func (NotificationDelivery) TableName() string {
 	return "notification_deliveries"
 }
+
+func init() {
+	RegisterModel(&NotificationDelivery{})
+}

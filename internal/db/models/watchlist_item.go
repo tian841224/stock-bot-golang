@@ -15,3 +15,7 @@ type WatchlistItem struct {
 func (WatchlistItem) TableName() string {
 	return "watchlist_items"
 }
+
+func init() {
+	RegisterModel(&WatchlistItem{})
+}

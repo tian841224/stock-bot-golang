@@ -27,3 +27,7 @@ type NotificationEvent struct {
 func (NotificationEvent) TableName() string {
 	return "notification_events"
 }
+
+func init() {
+	RegisterModel(&NotificationEvent{})
+}

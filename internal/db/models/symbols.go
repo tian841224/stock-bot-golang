@@ -14,3 +14,7 @@ type Symbols struct {
 func (Symbols) TableName() string {
 	return "symbols"
 }
+
+func init() {
+	RegisterModel(&Symbols{})
+}

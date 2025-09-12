@@ -15,3 +15,7 @@ type SubscriptionSymbol struct {
 func (SubscriptionSymbol) TableName() string {
 	return "subscription_symbols"
 }
+
+func init() {
+	RegisterModel(&SubscriptionSymbol{})
+}
