@@ -84,6 +84,20 @@ func (f *FinmindTradeAPI) GetTaiwanVariousIndicators(requestDto dto.Finmindtrade
 	return doRequest[dto.TaiwanVariousIndicatorsResponseDto](f, requestDto)
 }
 
+// 美股股票清單
+func (f *FinmindTradeAPI) GetUSStockInfo() (response dto.USStockInfoResponseDto, err error) {
+	requestDto := dto.FinmindtradeRequestDto{
+		DataSet: "USStockInfo",
+	}
+	return doRequest[dto.USStockInfoResponseDto](f, requestDto)
+}
+
+// 美股盤後股價
+func (f *FinmindTradeAPI) GetUSStockPrice(requestDto dto.FinmindtradeRequestDto) (response dto.USStockPriceResponseDto, err error) {
+	requestDto.DataSet = "USStockPrice"
+	return doRequest[dto.USStockPriceResponseDto](f, requestDto)
+}
+
 // 大盤資訊(法人/資券/美股大盤)
 func (f *FinmindTradeAPI) GetTodayInfo() (response dto.TodayInfoResponseDto, err error) {
 	baseUrl := "https://api.web.finmindtrade.com/v2/today_info"
