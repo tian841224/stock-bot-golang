@@ -12,10 +12,12 @@ import (
 	"stock-bot/config"
 	"stock-bot/internal/api/linebot"
 	"stock-bot/internal/api/tgbot"
+	"stock-bot/internal/api/twse"
 	"stock-bot/internal/db"
 	"stock-bot/internal/infrastructure/finmindtrade"
 	linebotInfra "stock-bot/internal/infrastructure/linebot"
 	tgbotInfra "stock-bot/internal/infrastructure/tgbot"
+	twseInfra "stock-bot/internal/infrastructure/twse"
 	lineService "stock-bot/internal/service/bot/line"
 	tgService "stock-bot/internal/service/bot/tg"
 	"stock-bot/pkg/logger"
@@ -71,6 +73,11 @@ func main() {
 
 	// 初始化 Finmind Trade API
 	finmindtrade.Init(*cfg)
+
+	// 初始化 TWSE API 並註冊路由
+	twseAPI := twseInfra.NewTwseAPI()
+	twseHandler := twse.NewTwseHandler(twseAPI)
+	twse.RegisterRoutes(router, twseHandler)
 
 	// 從環境變數讀取埠號，預設 8080
 	port := os.Getenv("PORT")
