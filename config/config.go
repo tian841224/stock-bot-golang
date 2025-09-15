@@ -13,8 +13,9 @@ func LoadConfig() (*Config, error) {
 	// 設定 .env 檔案
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("..")
+	viper.AddConfigPath(".")     // 目前目錄
+	viper.AddConfigPath("..")    // 上一層目錄
+	viper.AddConfigPath("../..") // 專案根目錄（適用於 cmd 子目錄）
 
 	// 嘗試讀取 .env 檔案（如果存在的話）
 	if err := viper.ReadInConfig(); err != nil {
