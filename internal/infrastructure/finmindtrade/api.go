@@ -11,7 +11,7 @@ import (
 
 // FinmindTradeAPIInterface 定義 FinmindTrade API 的介面
 type FinmindTradeAPIInterface interface {
-	GetTaiwanStockInfo(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockInfoResponseDto, error)
+	GetTaiwanStockInfo() (dto.TaiwanStockInfoResponseDto, error)
 	GetTaiwanStockPrice(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockPriceResponseDto, error)
 	GetTaiwanExchangeRate(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanExchangeRateResponseDto, error)
 	GetTaiwanStockDividend(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockDividendResponseDto, error)
@@ -46,8 +46,10 @@ func NewFinmindTradeAPI(cfg config.Config) *FinmindTradeAPI {
 }
 
 // 取得台灣股票資訊
-func (f *FinmindTradeAPI) GetTaiwanStockInfo(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockInfoResponseDto, err error) {
-	requestDto.DataSet = "TaiwanStockInfo"
+func (f *FinmindTradeAPI) GetTaiwanStockInfo() (response dto.TaiwanStockInfoResponseDto, err error) {
+	requestDto := dto.FinmindtradeRequestDto{
+		DataSet: "TaiwanStockInfo",
+	}
 	return doRequest[dto.TaiwanStockInfoResponseDto](f, requestDto)
 }
 
@@ -195,7 +197,7 @@ func (f *FinmindTradeAPI) GetTaiwanStockAnalysisPlot(requestDto dto.Finmindtrade
 
 // doRequest 共用方法：送出請求並解析 JSON 至指定型別
 func doRequest[T any](f *FinmindTradeAPI, requestDto dto.FinmindtradeRequestDto) (response T, err error) {
-	req, err := f.getRequest(requestDto)
+	req, err := f.getRequest()
 	if err != nil {
 		return response, fmt.Errorf("無法建立Request: %v", err)
 	}
@@ -233,7 +235,7 @@ func doRequest[T any](f *FinmindTradeAPI, requestDto dto.FinmindtradeRequestDto)
 }
 
 // 設定Request參數
-func (f *FinmindTradeAPI) getRequest(requestDto dto.FinmindtradeRequestDto) (*http.Request, error) {
+func (f *FinmindTradeAPI) getRequest() (*http.Request, error) {
 	req, err := http.NewRequest("GET", f.baseURL, nil)
 	if err != nil {
 		return nil, err

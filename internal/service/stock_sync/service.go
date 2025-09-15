@@ -3,7 +3,6 @@ package stock_sync
 import (
 	"stock-bot/internal/db/models"
 	"stock-bot/internal/infrastructure/finmindtrade"
-	"stock-bot/internal/infrastructure/finmindtrade/dto"
 	"stock-bot/internal/repository"
 	"stock-bot/pkg/logger"
 	"sync"
@@ -28,8 +27,7 @@ func (s *StockSyncService) SyncTaiwanStockInfo() error {
 	logger.Log.Info("開始同步台灣股票資訊...")
 
 	// 呼叫 FinMind API
-	requestDto := dto.FinmindtradeRequestDto{}
-	response, err := s.finmindClient.GetTaiwanStockInfo(requestDto)
+	response, err := s.finmindClient.GetTaiwanStockInfo()
 	if err != nil {
 		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
 		return err
@@ -50,7 +48,53 @@ func (s *StockSyncService) SyncTaiwanStockInfo() error {
 		symbol := &models.Symbols{
 			Symbol: stockInfo.StockID,
 			Name:   stockInfo.StockName,
-			Market: stockInfo.Type,
+			Market: "TW",
+		}
+		symbols = append(symbols, symbol)
+	}
+
+	// 非同步批次處理
+	successCount, errorCount, err := s.asyncBatchUpsert(symbols)
+	if err != nil {
+		logger.Log.Error("批次更新股票資訊失敗", zap.Error(err))
+		return err
+	}
+
+	logger.Log.Info("股票資訊同步完成",
+		zap.Int("成功", successCount),
+		zap.Int("失敗", errorCount),
+		zap.Int("總計", len(response.Data)))
+
+	return nil
+}
+
+// SyncUSStockInfo 同步美股股票資訊
+func (s *StockSyncService) SyncUSStockInfo() error {
+	logger.Log.Info("開始同步美股股票資訊...")
+
+	// 呼叫 FinMind API
+	response, err := s.finmindClient.GetUSStockInfo()
+	if err != nil {
+		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
+		return err
+	}
+
+	if response.Status != 200 {
+		logger.Log.Error("FinMind API 回應錯誤",
+			zap.Int("status", response.Status),
+			zap.String("message", response.Msg))
+		return nil // 不返回錯誤，避免程式中斷
+	}
+
+	logger.Log.Info("成功取得股票資訊", zap.Int("count", len(response.Data)))
+
+	// 轉換為 models.Symbols
+	symbols := make([]*models.Symbols, 0, len(response.Data))
+	for _, stockInfo := range response.Data {
+		symbol := &models.Symbols{
+			Symbol: stockInfo.StockID,
+			Name:   stockInfo.StockName,
+			Market: "US",
 		}
 		symbols = append(symbols, symbol)
 	}
