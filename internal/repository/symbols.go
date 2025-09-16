@@ -6,35 +6,35 @@ import (
 	"gorm.io/gorm"
 )
 
-type SymbolsRepository interface {
-	Create(symbol *models.Symbols) error
-	GetByID(id uint) (*models.Symbols, error)
-	GetBySymbolAndMarket(symbol, market string) (*models.Symbols, error)
-	Update(symbol *models.Symbols) error
+type SymbolRepository interface {
+	Create(symbol *models.Symbol) error
+	GetByID(id uint) (*models.Symbol, error)
+	GetBySymbolAndMarket(symbol, market string) (*models.Symbol, error)
+	Update(symbol *models.Symbol) error
 	Delete(id uint) error
-	List(offset, limit int) ([]*models.Symbols, error)
-	GetByMarket(market string) ([]*models.Symbols, error)
-	BatchCreate(symbols []*models.Symbols) error
-	BatchUpsert(symbols []*models.Symbols) (successCount, errorCount int, err error)
+	List(offset, limit int) ([]*models.Symbol, error)
+	GetByMarket(market string) ([]*models.Symbol, error)
+	BatchCreate(symbols []*models.Symbol) error
+	BatchUpsert(symbols []*models.Symbol) (successCount, errorCount int, err error)
 	GetMarketStats() (map[string]int, error)
 }
 
-type symbolsRepository struct {
+type symbolRepository struct {
 	db *gorm.DB
 }
 
-func NewSymbolsRepository(db *gorm.DB) SymbolsRepository {
-	return &symbolsRepository{db: db}
+func NewSymbolRepository(db *gorm.DB) SymbolRepository {
+	return &symbolRepository{db: db}
 }
 
 // Create 建立新股票代號
-func (r *symbolsRepository) Create(symbol *models.Symbols) error {
+func (r *symbolRepository) Create(symbol *models.Symbol) error {
 	return r.db.Create(symbol).Error
 }
 
 // GetByID 根據 ID 取得股票代號
-func (r *symbolsRepository) GetByID(id uint) (*models.Symbols, error) {
-	var symbol models.Symbols
+func (r *symbolRepository) GetByID(id uint) (*models.Symbol, error) {
+	var symbol models.Symbol
 	err := r.db.First(&symbol, id).Error
 	if err != nil {
 		return nil, err
@@ -43,8 +43,8 @@ func (r *symbolsRepository) GetByID(id uint) (*models.Symbols, error) {
 }
 
 // GetBySymbolAndMarket 根據股票代號和市場取得資料
-func (r *symbolsRepository) GetBySymbolAndMarket(symbol, market string) (*models.Symbols, error) {
-	var symbolData models.Symbols
+func (r *symbolRepository) GetBySymbolAndMarket(symbol, market string) (*models.Symbol, error) {
+	var symbolData models.Symbol
 	err := r.db.Where("symbol = ? AND market = ?", symbol, market).First(&symbolData).Error
 	if err != nil {
 		return nil, err
@@ -53,36 +53,36 @@ func (r *symbolsRepository) GetBySymbolAndMarket(symbol, market string) (*models
 }
 
 // Update 更新股票代號資料
-func (r *symbolsRepository) Update(symbol *models.Symbols) error {
+func (r *symbolRepository) Update(symbol *models.Symbol) error {
 	return r.db.Save(symbol).Error
 }
 
 // Delete 刪除股票代號
-func (r *symbolsRepository) Delete(id uint) error {
-	return r.db.Delete(&models.Symbols{}, id).Error
+func (r *symbolRepository) Delete(id uint) error {
+	return r.db.Delete(&models.Symbol{}, id).Error
 }
 
 // List 取得股票代號列表
-func (r *symbolsRepository) List(offset, limit int) ([]*models.Symbols, error) {
-	var symbols []*models.Symbols
+func (r *symbolRepository) List(offset, limit int) ([]*models.Symbol, error) {
+	var symbols []*models.Symbol
 	err := r.db.Offset(offset).Limit(limit).Find(&symbols).Error
 	return symbols, err
 }
 
 // GetByMarket 根據市場取得股票代號列表
-func (r *symbolsRepository) GetByMarket(market string) ([]*models.Symbols, error) {
-	var symbols []*models.Symbols
+func (r *symbolRepository) GetByMarket(market string) ([]*models.Symbol, error) {
+	var symbols []*models.Symbol
 	err := r.db.Where("market = ?", market).Find(&symbols).Error
 	return symbols, err
 }
 
 // BatchCreate 批次建立股票代號
-func (r *symbolsRepository) BatchCreate(symbols []*models.Symbols) error {
+func (r *symbolRepository) BatchCreate(symbols []*models.Symbol) error {
 	return r.db.CreateInBatches(symbols, 100).Error
 }
 
 // BatchUpsert 批次更新或建立股票代號
-func (r *symbolsRepository) BatchUpsert(symbols []*models.Symbols) (successCount, errorCount int, err error) {
+func (r *symbolRepository) BatchUpsert(symbols []*models.Symbol) (successCount, errorCount int, err error) {
 	tx := r.db.Begin()
 	if tx.Error != nil {
 		return 0, 0, tx.Error
@@ -129,7 +129,7 @@ func (r *symbolsRepository) BatchUpsert(symbols []*models.Symbols) (successCount
 }
 
 // GetMarketStats 取得各市場統計資訊
-func (r *symbolsRepository) GetMarketStats() (map[string]int, error) {
+func (r *symbolRepository) GetMarketStats() (map[string]int, error) {
 	stats := make(map[string]int)
 
 	var results []struct {
@@ -137,7 +137,7 @@ func (r *symbolsRepository) GetMarketStats() (map[string]int, error) {
 		Count  int64
 	}
 
-	err := r.db.Model(&models.Symbols{}).
+	err := r.db.Model(&models.Symbol{}).
 		Select("market, count(*) as count").
 		Group("market").
 		Find(&results).Error
@@ -157,8 +157,8 @@ func (r *symbolsRepository) GetMarketStats() (map[string]int, error) {
 }
 
 // getBySymbolAndMarketTx 在交易中根據股票代號和市場取得資料
-func (r *symbolsRepository) getBySymbolAndMarketTx(tx *gorm.DB, symbol, market string) (*models.Symbols, error) {
-	var symbolData models.Symbols
+func (r *symbolRepository) getBySymbolAndMarketTx(tx *gorm.DB, symbol, market string) (*models.Symbol, error) {
+	var symbolData models.Symbol
 	err := tx.Where("symbol = ? AND market = ?", symbol, market).First(&symbolData).Error
 	if err != nil {
 		return nil, err
@@ -167,6 +167,6 @@ func (r *symbolsRepository) getBySymbolAndMarketTx(tx *gorm.DB, symbol, market s
 }
 
 // shouldUpdate 判斷是否需要更新股票資料
-func (r *symbolsRepository) shouldUpdate(existing, new *models.Symbols) bool {
+func (r *symbolRepository) shouldUpdate(existing, new *models.Symbol) bool {
 	return existing.Name != new.Name || existing.Market != new.Market
 }

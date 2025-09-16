@@ -21,7 +21,7 @@ type NotificationEvent struct {
 	User         *User         `gorm:"foreignKey:UserID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	Feature      *Feature      `gorm:"foreignKey:FeatureID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"-"`
 	Subscription *Subscription `gorm:"foreignKey:SubscriptionID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
-	Symbol       *Symbols      `gorm:"foreignKey:SymbolID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
+	Symbol       *Symbol       `gorm:"foreignKey:SymbolID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
 }
 
 func (NotificationEvent) TableName() string {

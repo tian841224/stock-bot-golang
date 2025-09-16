@@ -43,7 +43,7 @@ func main() {
 	logger.Log.Info("資料庫初始化成功")
 
 	// 初始化 Repository 和 Service
-	symbolsRepo := repository.NewSymbolsRepository(db.GetDB())
+	symbolsRepo := repository.NewSymbolRepository(db.GetDB())
 	finmindClient := finmindtrade.NewFinmindTradeAPI(*cfg)
 	stockSyncService := stock_sync.NewStockSyncService(symbolsRepo, finmindClient)
 	logger.Log.Info("服務初始化成功")
@@ -115,7 +115,6 @@ func runBackgroundSync(ctx context.Context, stockSyncService *stock_sync.StockSy
 			if stats, err := stockSyncService.GetSyncStats(); err == nil {
 				logger.Log.Info("初始同步統計", zap.Any("stats", stats))
 			}
-			
 
 		}
 	}

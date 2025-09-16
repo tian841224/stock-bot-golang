@@ -11,11 +11,11 @@ import (
 )
 
 type StockSyncService struct {
-	symbolsRepo   repository.SymbolsRepository
+	symbolsRepo   repository.SymbolRepository
 	finmindClient finmindtrade.FinmindTradeAPIInterface
 }
 
-func NewStockSyncService(symbolsRepo repository.SymbolsRepository, finmindClient finmindtrade.FinmindTradeAPIInterface) *StockSyncService {
+func NewStockSyncService(symbolsRepo repository.SymbolRepository, finmindClient finmindtrade.FinmindTradeAPIInterface) *StockSyncService {
 	return &StockSyncService{
 		symbolsRepo:   symbolsRepo,
 		finmindClient: finmindClient,
@@ -42,10 +42,10 @@ func (s *StockSyncService) SyncTaiwanStockInfo() error {
 
 	logger.Log.Info("成功取得股票資訊", zap.Int("count", len(response.Data)))
 
-	// 轉換為 models.Symbols
-	symbols := make([]*models.Symbols, 0, len(response.Data))
+	// 轉換為 models.Symbol
+	symbols := make([]*models.Symbol, 0, len(response.Data))
 	for _, stockInfo := range response.Data {
-		symbol := &models.Symbols{
+		symbol := &models.Symbol{
 			Symbol: stockInfo.StockID,
 			Name:   stockInfo.StockName,
 			Market: "TW",
@@ -88,10 +88,10 @@ func (s *StockSyncService) SyncUSStockInfo() error {
 
 	logger.Log.Info("成功取得股票資訊", zap.Int("count", len(response.Data)))
 
-	// 轉換為 models.Symbols
-	symbols := make([]*models.Symbols, 0, len(response.Data))
+	// 轉換為 models.Symbol
+	symbols := make([]*models.Symbol, 0, len(response.Data))
 	for _, stockInfo := range response.Data {
-		symbol := &models.Symbols{
+		symbol := &models.Symbol{
 			Symbol: stockInfo.StockID,
 			Name:   stockInfo.StockName,
 			Market: "US",
@@ -115,7 +115,7 @@ func (s *StockSyncService) SyncUSStockInfo() error {
 }
 
 // asyncBatchUpsert 非同步批次更新或建立股票資訊
-func (s *StockSyncService) asyncBatchUpsert(symbols []*models.Symbols) (totalSuccess, totalError int, err error) {
+func (s *StockSyncService) asyncBatchUpsert(symbols []*models.Symbol) (totalSuccess, totalError int, err error) {
 	const (
 		batchSize  = 100 // 每個批次的大小
 		maxWorkers = 5   // 最大工作者數量
@@ -129,7 +129,7 @@ func (s *StockSyncService) asyncBatchUpsert(symbols []*models.Symbols) (totalSuc
 		zap.Int("工作者數", maxWorkers))
 
 	// 建立通道
-	batchChan := make(chan []*models.Symbols, len(batches))
+	batchChan := make(chan []*models.Symbol, len(batches))
 	resultChan := make(chan batchResult, len(batches))
 
 	// 啟動工作者
@@ -181,7 +181,7 @@ type batchResult struct {
 }
 
 // worker 工作者函式
-func (s *StockSyncService) worker(workerID int, batchChan <-chan []*models.Symbols, resultChan chan<- batchResult, wg *sync.WaitGroup) {
+func (s *StockSyncService) worker(workerID int, batchChan <-chan []*models.Symbol, resultChan chan<- batchResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	batchID := 0
@@ -210,8 +210,8 @@ func (s *StockSyncService) worker(workerID int, batchChan <-chan []*models.Symbo
 }
 
 // splitIntoBatches 將資料分割成批次
-func (s *StockSyncService) splitIntoBatches(symbols []*models.Symbols, batchSize int) [][]*models.Symbols {
-	var batches [][]*models.Symbols
+func (s *StockSyncService) splitIntoBatches(symbols []*models.Symbol, batchSize int) [][]*models.Symbol {
+	var batches [][]*models.Symbol
 
 	for i := 0; i < len(symbols); i += batchSize {
 		end := i + batchSize

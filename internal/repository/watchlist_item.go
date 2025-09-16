@@ -18,7 +18,7 @@ type WatchlistItemRepository interface {
 	DeleteByWatchlistAndSymbol(watchlistID, symbolID uint) error
 	List(offset, limit int) ([]*models.WatchlistItem, error)
 	BatchCreate(items []*models.WatchlistItem) error
-	GetSymbolsByWatchlistID(watchlistID uint) ([]*models.Symbols, error)
+	GetSymbolsByWatchlistID(watchlistID uint) ([]*models.Symbol, error)
 	IsSymbolInWatchlist(watchlistID, symbolID uint) (bool, error)
 }
 
@@ -102,8 +102,8 @@ func (r *watchlistItemRepository) BatchCreate(items []*models.WatchlistItem) err
 }
 
 // GetSymbolsByWatchlistID 根據觀察清單 ID 取得所有股票
-func (r *watchlistItemRepository) GetSymbolsByWatchlistID(watchlistID uint) ([]*models.Symbols, error) {
-	var symbols []*models.Symbols
+func (r *watchlistItemRepository) GetSymbolsByWatchlistID(watchlistID uint) ([]*models.Symbol, error) {
+	var symbols []*models.Symbol
 	err := r.db.Table("symbols").
 		Joins("JOIN watchlist_items ON symbols.id = watchlist_items.symbol_id").
 		Where("watchlist_items.watchlist_id = ?", watchlistID).

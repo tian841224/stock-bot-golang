@@ -18,7 +18,7 @@ type SubscriptionSymbolRepository interface {
 	DeleteBySubscriptionAndSymbol(subscriptionID, symbolID uint) error
 	List(offset, limit int) ([]*models.SubscriptionSymbol, error)
 	BatchCreate(subscriptionSymbols []*models.SubscriptionSymbol) error
-	GetSymbolsBySubscriptionID(subscriptionID uint) ([]*models.Symbols, error)
+	GetSymbolsBySubscriptionID(subscriptionID uint) ([]*models.Symbol, error)
 	GetSubscriptionsBySymbolID(symbolID uint) ([]*models.Subscription, error)
 }
 
@@ -102,8 +102,8 @@ func (r *subscriptionSymbolRepository) BatchCreate(subscriptionSymbols []*models
 }
 
 // GetSymbolsBySubscriptionID 根據訂閱 ID 取得所有股票
-func (r *subscriptionSymbolRepository) GetSymbolsBySubscriptionID(subscriptionID uint) ([]*models.Symbols, error) {
-	var symbols []*models.Symbols
+func (r *subscriptionSymbolRepository) GetSymbolsBySubscriptionID(subscriptionID uint) ([]*models.Symbol, error) {
+	var symbols []*models.Symbol
 	err := r.db.Table("symbols").
 		Joins("JOIN subscription_symbols ON symbols.id = subscription_symbols.symbol_id").
 		Where("subscription_symbols.subscription_id = ?", subscriptionID).

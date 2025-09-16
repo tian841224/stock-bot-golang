@@ -1,7 +1,7 @@
 package models
 
 // 股票代號模型
-type Symbols struct {
+type Symbol struct {
 	Model
 	// 股票代號
 	Symbol string `gorm:"column:symbol;type:varchar(255);not null;index:idx_symbol_market,priority:1" json:"symbol"`
@@ -11,10 +11,10 @@ type Symbols struct {
 	Market string `gorm:"column:market;type:varchar(255);not null;index:idx_symbol_market,priority:2" json:"market"`
 }
 
-func (Symbols) TableName() string {
+func (Symbol) TableName() string {
 	return "symbols"
 }
 
 func init() {
-	RegisterModel(&Symbols{})
+	RegisterModel(&Symbol{})
 }
