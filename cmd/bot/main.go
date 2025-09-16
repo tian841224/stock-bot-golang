@@ -18,9 +18,12 @@ import (
 	linebotInfra "stock-bot/internal/infrastructure/linebot"
 	tgbotInfra "stock-bot/internal/infrastructure/tgbot"
 	twseInfra "stock-bot/internal/infrastructure/twse"
+	"stock-bot/internal/repository"
 	lineService "stock-bot/internal/service/bot/line"
 	tgService "stock-bot/internal/service/bot/tg"
+	"stock-bot/internal/service/stock"
 	twseService "stock-bot/internal/service/twse"
+	"stock-bot/internal/service/user"
 	"stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -46,6 +49,19 @@ func main() {
 	}
 	logger.Log.Info("資料庫初始化成功")
 
+	// 初始化 Repository
+	userRepo := repository.NewUserRepository(db.GetDB())
+	symbolsRepo := repository.NewSymbolRepository(db.GetDB())
+	userSubscriptionRepo := repository.NewUserSubscriptionRepository(db.GetDB())
+
+	// 初始化外部 API 客戶端
+	finmindClient := finmindtrade.NewFinmindTradeAPI(*cfg)
+	twseAPI := twseInfra.NewTwseAPI()
+
+	// 初始化服務
+	userService := user.NewUserService(userRepo)
+	stockService := stock.NewStockService(finmindClient, twseAPI, symbolsRepo)
+
 	// 建立 Gin 引擎與註冊路由
 	router := gin.Default()
 
@@ -68,16 +84,11 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("初始化 Telegram Bot 失敗: %v", err))
 	}
-	tgSvc := tgService.NewTgService(tgClient.Client)
+	tgSvc := tgService.NewTgService(tgClient.Client, stockService, userService, userSubscriptionRepo)
 	tgHandler := tgbot.NewTgHandler(cfg, tgSvc)
 	tgbot.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
 
-	// 初始化 Finmind Trade API (預留給未來功能使用)
-	finmindClient := finmindtrade.NewFinmindTradeAPI(*cfg)
-	_ = finmindClient // 暫時避免 unused variable 錯誤
-
 	// 初始化 TWSE API 並註冊路由
-	twseAPI := twseInfra.NewTwseAPI()
 	twseService := twseService.NewTwseService(twseAPI)
 	twseHandler := twse.NewTwseHandler(twseService)
 	twse.RegisterRoutes(router, twseHandler)
