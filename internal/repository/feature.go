@@ -22,7 +22,12 @@ type featureRepository struct {
 }
 
 func NewFeatureRepository(db *gorm.DB) FeatureRepository {
-	return &featureRepository{db: db}
+	repo := &featureRepository{db: db}
+
+	// 自動建立預設功能資料
+	_ = repo.createDefaultFeatures()
+
+	return repo
 }
 
 // Create 建立新功能
@@ -82,4 +87,44 @@ func (r *featureRepository) GetAll() ([]*models.Feature, error) {
 	var features []*models.Feature
 	err := r.db.Find(&features).Error
 	return features, err
+}
+
+// createDefaultFeatures 建立預設功能資料（私有方法）
+func (r *featureRepository) createDefaultFeatures() error {
+	defaultFeatures := []*models.Feature{
+		{
+			Name:        "Stock Info",
+			Code:        "1",
+			Description: "Stock information feature",
+		},
+		{
+			Name:        "Stock News",
+			Code:        "2",
+			Description: "Stock news feature",
+		},
+		{
+			Name:        "Daily Market Info",
+			Code:        "3",
+			Description: "Daily market information feature",
+		},
+		{
+			Name:        "Top Volume Items",
+			Code:        "4",
+			Description: "Top 20 volume items feature",
+		},
+	}
+
+	for _, feature := range defaultFeatures {
+		// 檢查是否已存在
+		var existingFeature models.Feature
+		err := r.db.Where("code = ?", feature.Code).First(&existingFeature).Error
+		if err == gorm.ErrRecordNotFound {
+			// 不存在則建立
+			if err := r.db.Create(feature).Error; err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
