@@ -73,7 +73,7 @@ func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
 	case "/p":
 		return s.commandHandler.CommandPerformance(userID, arg1)
 	case "/d":
-		return s.commandHandler.CommandDetailPrice(userID, arg1)
+		return s.commandHandler.CommandTodayStockPrice(userID, arg1, arg2)
 	case "/n":
 		return s.commandHandler.CommandNews(userID, arg1)
 	case "/yn":
@@ -86,8 +86,8 @@ func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
 			}
 		}
 		return s.commandHandler.CommandDailyMarketInfo(userID, count)
-	case "/t":
-		return s.commandHandler.CommandTopVolumeItems(userID)
+	// case "/t":
+	// 	return s.commandHandler.CommandTopVolumeItems(userID)
 	case "/i":
 		return s.commandHandler.CommandStockInfo(userID, arg1, arg2)
 	case "/sub":

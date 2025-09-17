@@ -2,7 +2,6 @@ package twstock
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -40,21 +39,6 @@ func NewStockService(
 // ========== 資料結構定義 ==========
 
 // StockPriceInfo 股票價格資訊
-type StockPriceInfo struct {
-	StockID          string  `json:"stock_id"`
-	StockName        string  `json:"stock_name"`
-	Date             string  `json:"date"`
-	OpenPrice        float64 `json:"open_price"`
-	ClosePrice       float64 `json:"close_price"`
-	HighPrice        float64 `json:"high_price"`
-	LowPrice         float64 `json:"low_price"`
-	Volume           int64   `json:"volume"`
-	Transaction      int64   `json:"transaction"`
-	Amount           int64   `json:"amount"`
-	ChangeAmount     float64 `json:"change_amount"`
-	PercentageChange string  `json:"percentage_change"`
-	UpDownSign       string  `json:"up_down_sign"`
-}
 
 // MarketInfo 市場資訊
 type MarketInfo struct {
@@ -76,12 +60,12 @@ type NewsInfo struct {
 // ========== 股票價格相關方法 ==========
 
 // GetStockPrice 取得股票價格資訊
-func (s *StockService) GetStockPrice(stockID string, date ...string) (*StockPriceInfo, error) {
+func (s *StockService) GetStockPrice(stockID string, date ...string) (*stockDto.StockPriceInfo, error) {
 	logger.Log.Info("取得股票價格", zap.String("stockID", stockID))
 
 	// 建立請求參數
 	requestDto := dto.FinmindtradeRequestDto{
-		StockID: stockID,
+		DataID: stockID,
 	}
 
 	// 如果有指定日期，設定日期範圍
@@ -106,8 +90,13 @@ func (s *StockService) GetStockPrice(stockID string, date ...string) (*StockPric
 		return nil, fmt.Errorf("查無股票資料")
 	}
 
+	latestData := &dto.TaiwanStockPriceData{}
 	// 取得最新一筆資料
-	latestData := response.Data[len(response.Data)-1]
+	if len(response.Data) == 2 {
+		latestData = &response.Data[0]
+	} else {
+		latestData = &response.Data[len(response.Data)-1]
+	}
 
 	// 取得股票名稱
 	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(stockID, "TW")
@@ -127,7 +116,7 @@ func (s *StockService) GetStockPrice(stockID string, date ...string) (*StockPric
 		changeAmount = -changeAmount
 	}
 
-	return &StockPriceInfo{
+	return &stockDto.StockPriceInfo{
 		StockID:          stockID,
 		StockName:        stockName,
 		Date:             latestData.Date,
@@ -312,74 +301,74 @@ func (s *StockService) GetDailyMarketInfo(count int) ([]*MarketInfo, error) {
 	return result, nil
 }
 
-// GetTopVolumeItems 取得交易量前20名
-func (s *StockService) GetTopVolumeItems() ([]*StockPriceInfo, error) {
-	logger.Log.Info("取得交易量前20名")
+// // GetTopVolumeItems 取得交易量前20名
+// func (s *StockService) GetTopVolumeItems() ([]*StockPriceInfo, error) {
+// 	logger.Log.Info("取得交易量前20名")
 
-	// 呼叫 TWSE API
-	response, err := s.twseAPI.GetTopVolumeItems()
-	if err != nil {
-		logger.Log.Error("呼叫 TWSE API 失敗", zap.Error(err))
-		return nil, err
-	}
+// 	// 呼叫 TWSE API
+// 	response, err := s.twseAPI.GetTopVolumeItems()
+// 	if err != nil {
+// 		logger.Log.Error("呼叫 TWSE API 失敗", zap.Error(err))
+// 		return nil, err
+// 	}
 
-	if len(response.Data) == 0 {
-		return nil, fmt.Errorf("查無交易量資料")
-	}
+// 	if len(response.Data) == 0 {
+// 		return nil, fmt.Errorf("查無交易量資料")
+// 	}
 
-	var result []*StockPriceInfo
-	for _, item := range response.Data {
-		if len(item) < 12 {
-			continue
-		}
+// 	var result []*StockPriceInfo
+// 	for _, item := range response.Data {
+// 		if len(item) < 12 {
+// 			continue
+// 		}
 
-		// 解析資料 (根據 TWSE API 格式)
-		stockID := fmt.Sprintf("%v", item[1])
-		stockName := fmt.Sprintf("%v", item[2])
+// 		// 解析資料 (根據 TWSE API 格式)
+// 		stockID := fmt.Sprintf("%v", item[1])
+// 		stockName := fmt.Sprintf("%v", item[2])
 
-		// 轉換價格
-		openPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[5]), 64)
-		highPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[6]), 64)
-		lowPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[7]), 64)
-		closePrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[8]), 64)
+// 		// 轉換價格
+// 		openPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[5]), 64)
+// 		highPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[6]), 64)
+// 		lowPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[7]), 64)
+// 		closePrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[8]), 64)
 
-		// 轉換成交量和筆數
-		volume, _ := strconv.ParseInt(fmt.Sprintf("%v", item[3]), 10, 64)
-		transaction, _ := strconv.ParseInt(fmt.Sprintf("%v", item[4]), 10, 64)
+// 		// 轉換成交量和筆數
+// 		volume, _ := strconv.ParseInt(fmt.Sprintf("%v", item[3]), 10, 64)
+// 		transaction, _ := strconv.ParseInt(fmt.Sprintf("%v", item[4]), 10, 64)
 
-		// 計算漲跌幅
-		changeAmount := closePrice - openPrice
-		percentageChange := "0.00%"
-		if openPrice != 0 {
-			percentageChange = fmt.Sprintf("%.2f%%", (changeAmount/openPrice)*100)
-		}
+// 		// 計算漲跌幅
+// 		changeAmount := closePrice - openPrice
+// 		percentageChange := "0.00%"
+// 		if openPrice != 0 {
+// 			percentageChange = fmt.Sprintf("%.2f%%", (changeAmount/openPrice)*100)
+// 		}
 
-		upDownSign := ""
-		if changeAmount > 0 {
-			upDownSign = "+"
-		} else if changeAmount < 0 {
-			upDownSign = "-"
-			changeAmount = -changeAmount
-		}
+// 		upDownSign := ""
+// 		if changeAmount > 0 {
+// 			upDownSign = "+"
+// 		} else if changeAmount < 0 {
+// 			upDownSign = "-"
+// 			changeAmount = -changeAmount
+// 		}
 
-		stockInfo := &StockPriceInfo{
-			StockID:          stockID,
-			StockName:        stockName,
-			OpenPrice:        openPrice,
-			ClosePrice:       closePrice,
-			HighPrice:        highPrice,
-			LowPrice:         lowPrice,
-			Volume:           volume,
-			Transaction:      transaction,
-			ChangeAmount:     changeAmount,
-			PercentageChange: percentageChange,
-			UpDownSign:       upDownSign,
-		}
-		result = append(result, stockInfo)
-	}
+// 		stockInfo := &StockPriceInfo{
+// 			StockID:          stockID,
+// 			StockName:        stockName,
+// 			OpenPrice:        openPrice,
+// 			ClosePrice:       closePrice,
+// 			HighPrice:        highPrice,
+// 			LowPrice:         lowPrice,
+// 			Volume:           volume,
+// 			Transaction:      transaction,
+// 			ChangeAmount:     changeAmount,
+// 			PercentageChange: percentageChange,
+// 			UpDownSign:       upDownSign,
+// 		}
+// 		result = append(result, stockInfo)
+// 	}
 
-	return result, nil
-}
+// 	return result, nil
+// }
 
 // GetAfterTradingVolume 取得盤後資訊
 func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.AfterTradingVolumeResponseDto, error) {

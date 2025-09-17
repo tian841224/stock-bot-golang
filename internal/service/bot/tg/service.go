@@ -27,20 +27,20 @@ func NewTgService(
 	}
 }
 
-// GetStockDetailInfo 取得股票詳細資訊並格式化
-func (s *TgService) GetStockDetailInfo(symbol string) (string, error) {
+// GetTodayStockPrice 取得今日股價詳細資訊
+func (s *TgService) GetTodayStockPrice(symbol string) (string, error) {
 	if symbol == "" {
 		return "", fmt.Errorf("股票代號不能為空")
 	}
 
-	// 取得股票價格資訊
+	// 取得今日股價資訊
 	stockInfo, err := s.stockService.GetStockPrice(symbol)
 	if err != nil {
-		logger.Log.Error("取得股票價格失敗", zap.Error(err))
+		logger.Log.Error("取得今日股價失敗", zap.Error(err))
 		return "", fmt.Errorf("查無此股票資料，請重新確認")
 	}
 
-	// 建立詳細資訊訊息
+	// 建立今日股價詳細訊息
 	emoji := ""
 	if stockInfo.UpDownSign == "+" {
 		emoji = "📈"
@@ -138,47 +138,47 @@ func (s *TgService) GetYahooStockNews(symbol string) (string, error) {
 }
 
 // GetTopVolumeItemsFormatted 取得格式化的交易量前20名
-func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
-	topItems, err := s.stockService.GetTopVolumeItems()
-	if err != nil {
-		logger.Log.Error("取得交易量前20名失敗", zap.Error(err))
-		return "", fmt.Errorf("查無資料，請確認後再試")
-	}
+// func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
+// 	topItems, err := s.stockService.GetTopVolumeItems()
+// 	if err != nil {
+// 		logger.Log.Error("取得交易量前20名失敗", zap.Error(err))
+// 		return "", fmt.Errorf("查無資料，請確認後再試")
+// 	}
 
-	if len(topItems) == 0 {
-		return "", fmt.Errorf("查無資料，請確認後再試")
-	}
+// 	if len(topItems) == 0 {
+// 		return "", fmt.Errorf("查無資料，請確認後再試")
+// 	}
 
-	messageText := "🔝<b>今日交易量前二十</b>\n\n"
+// 	messageText := "🔝<b>今日交易量前二十</b>\n\n"
 
-	for _, item := range topItems {
-		emoji := ""
-		if item.UpDownSign == "+" {
-			emoji = "📈"
-		} else if item.UpDownSign == "-" {
-			emoji = "📉"
-		}
+// 	for _, item := range topItems {
+// 		emoji := ""
+// 		if item.UpDownSign == "+" {
+// 			emoji = "📈"
+// 		} else if item.UpDownSign == "-" {
+// 			emoji = "📉"
+// 		}
 
-		messageText += fmt.Sprintf("%s<b>%s (%s)</b>\n<code>", emoji, item.StockName, item.StockID)
-		messageText += fmt.Sprintf("成交股數：%d\n", item.Volume)
-		messageText += fmt.Sprintf("成交筆數：%d\n", item.Transaction)
-		messageText += fmt.Sprintf("開盤價：%.2f\n", item.OpenPrice)
-		messageText += fmt.Sprintf("收盤價：%.2f\n", item.ClosePrice)
-		messageText += fmt.Sprintf("漲跌幅：%s%.2f (%s)\n", item.UpDownSign, item.ChangeAmount, item.PercentageChange)
-		messageText += fmt.Sprintf("最高價：%.2f\n", item.HighPrice)
-		messageText += fmt.Sprintf("最低價：%.2f\n", item.LowPrice)
-		messageText += "</code>\n"
-	}
+// 		messageText += fmt.Sprintf("%s<b>%s (%s)</b>\n<code>", emoji, item.StockName, item.StockID)
+// 		messageText += fmt.Sprintf("成交股數：%d\n", item.Volume)
+// 		messageText += fmt.Sprintf("成交筆數：%d\n", item.Transaction)
+// 		messageText += fmt.Sprintf("開盤價：%.2f\n", item.OpenPrice)
+// 		messageText += fmt.Sprintf("收盤價：%.2f\n", item.ClosePrice)
+// 		messageText += fmt.Sprintf("漲跌幅：%s%.2f (%s)\n", item.UpDownSign, item.ChangeAmount, item.PercentageChange)
+// 		messageText += fmt.Sprintf("最高價：%.2f\n", item.HighPrice)
+// 		messageText += fmt.Sprintf("最低價：%.2f\n", item.LowPrice)
+// 		messageText += "</code>\n"
+// 	}
 
-	return messageText, nil
-}
+// 	return messageText, nil
+// }
 
-// GetStockInfoByDate 取得指定日期的股票資訊
-func (s *TgService) GetStockInfoByDate(symbol, date string) (string, error) {
-	// 取得股票價格資訊
+// GetStockPriceByDate 取得指定日期的股價資訊
+func (s *TgService) GetStockPriceByDate(symbol, date string) (string, error) {
+	// 取得指定日期股價資訊
 	stockInfo, err := s.stockService.GetStockPrice(symbol, date)
 	if err != nil {
-		logger.Log.Error("取得股票資訊失敗", zap.Error(err))
+		logger.Log.Error("取得股價資訊失敗", zap.Error(err))
 		return "", fmt.Errorf("查無資料，請確認後再試")
 	}
 

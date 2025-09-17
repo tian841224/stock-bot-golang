@@ -10,5 +10,5 @@ func RegisterRoutes(r *gin.Engine, handler *TwseHandler) {
 		handler.GetDailyMarketInfo(nil, c)
 	})
 	r.GET("/after_trading_volume", handler.GetAfterTradingVolume)
-	r.GET("/top_volume_items", handler.GetTopVolumeItems)
+	// r.GET("/top_volume_items", handler.GetTopVolumeItems)
 }

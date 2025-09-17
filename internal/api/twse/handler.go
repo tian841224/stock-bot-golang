@@ -63,13 +63,13 @@ func (h *TwseHandler) GetAfterTradingVolume(c *gin.Context) {
 	c.JSON(200, result)
 }
 
-// GetTopVolumeItems 成交量前 20 股票
-func (h *TwseHandler) GetTopVolumeItems(c *gin.Context) {
-	result, err := h.twstockService.GetTopVolumeItems()
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
+// // GetTopVolumeItems 成交量前 20 股票
+// func (h *TwseHandler) GetTopVolumeItems(c *gin.Context) {
+// 	result, err := h.twstockService.GetTopVolumeItems()
+// 	if err != nil {
+// 		c.JSON(500, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	c.JSON(200, result)
-}
+// 	c.JSON(200, result)
+// }

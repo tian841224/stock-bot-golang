@@ -2,7 +2,9 @@ package tg
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
+	"time"
 
 	"stock-bot/internal/db/models"
 	"stock-bot/internal/repository"
@@ -54,7 +56,8 @@ func (c *TgCommandHandler) CommandStart(userID int64) error {
 - 60m - 60分K線
 
 股票資訊指令
-- /d [股票代碼] - 查詢股票詳細資訊
+- /d [股票代碼] - 查詢今日股價詳細資訊
+- /d [股票代碼] [日期] - 查詢指定日期股價 (格式: YYYY-MM-DD)
 - /p [股票代碼] - 查詢股票績效
 - /n [股票代碼] - 查詢股票新聞
 - /yn [股票代碼] - 查詢Yahoo股票新聞（預設：台股新聞）
@@ -120,21 +123,53 @@ func (c *TgCommandHandler) CommandPerformance(userID int64, symbol string) error
 	return c.sendMessageHTML(userID, performanceText)
 }
 
-// CommandDetailPrice 處理 /d 命令 - 股票詳細價格資訊
-func (c *TgCommandHandler) CommandDetailPrice(userID int64, symbol string) error {
+// CommandTodayStockPrice 處理 /d 命令 - 股價詳細資訊（支援日期查詢）
+func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date string) error {
 	// 輸入驗證
 	if symbol == "" {
-		return c.sendMessage(userID, "請輸入股票代號")
+		return c.sendMessage(userID, "請輸入股票代號\n\n使用方式：\n/d 股票代號 - 查詢今日股價\n/d 股票代號 2025-09-01 - 查詢指定日期股價")
 	}
 
-	// 呼叫業務邏輯
-	message, err := c.tgService.GetStockDetailInfo(symbol)
+	var message string
+	var err error
+
+	// 根據是否有日期參數決定呼叫哪個方法
+	if date == "" {
+		// 查詢今日股價
+		message, err = c.tgService.GetTodayStockPrice(symbol)
+	} else {
+		// 驗證日期格式
+		if !c.isValidDateFormat(date) {
+			return c.sendMessage(userID, "日期格式錯誤，請使用 YYYY-MM-DD 格式\n例如：2025-09-01")
+		}
+		// 查詢指定日期股價
+		message, err = c.tgService.GetStockPriceByDate(symbol, date)
+	}
+
 	if err != nil {
 		return c.sendMessage(userID, err.Error())
 	}
 
 	// 發送回應
 	return c.sendMessageHTML(userID, message)
+}
+
+// isValidDateFormat 驗證日期格式是否為 YYYY-MM-DD
+func (c *TgCommandHandler) isValidDateFormat(date string) bool {
+	// 檢查長度
+	if len(date) != 10 {
+		return false
+	}
+
+	// 使用正則表達式驗證格式
+	matched, err := regexp.MatchString(`^\d{4}-\d{2}-\d{2}$`, date)
+	if err != nil || !matched {
+		return false
+	}
+
+	// 嘗試解析日期以確保是有效日期
+	_, err = time.Parse("2006-01-02", date)
+	return err == nil
 }
 
 // CommandNews 處理 /n 命令 - 股票新聞
@@ -180,15 +215,15 @@ func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error
 }
 
 // CommandTopVolumeItems 處理 /t 命令 - 交易量前20名
-func (c *TgCommandHandler) CommandTopVolumeItems(userID int64) error {
-	// 取得交易量前20名資料
-	messageText, err := c.tgService.GetTopVolumeItemsFormatted()
-	if err != nil {
-		return c.sendMessage(userID, err.Error())
-	}
+// func (c *TgCommandHandler) CommandTopVolumeItems(userID int64) error {
+// 	// 取得交易量前20名資料
+// 	messageText, err := c.tgService.GetTopVolumeItemsFormatted()
+// 	if err != nil {
+// 		return c.sendMessage(userID, err.Error())
+// 	}
 
-	return c.sendMessageHTML(userID, messageText)
-}
+// 	return c.sendMessageHTML(userID, messageText)
+// }
 
 // CommandStockInfo 處理 /i 命令 - 股票資訊（可指定日期）
 func (c *TgCommandHandler) CommandStockInfo(userID int64, symbol, date string) error {
@@ -197,7 +232,7 @@ func (c *TgCommandHandler) CommandStockInfo(userID int64, symbol, date string) e
 	}
 
 	// 取得股票資訊
-	message, err := c.tgService.GetStockInfoByDate(symbol, date)
+	message, err := c.tgService.GetStockPriceByDate(symbol, date)
 	if err != nil {
 		return c.sendMessage(userID, err.Error())
 	}
