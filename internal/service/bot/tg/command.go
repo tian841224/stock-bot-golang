@@ -215,15 +215,15 @@ func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error
 }
 
 // CommandTopVolumeItems 處理 /t 命令 - 交易量前20名
-// func (c *TgCommandHandler) CommandTopVolumeItems(userID int64) error {
-// 	// 取得交易量前20名資料
-// 	messageText, err := c.tgService.GetTopVolumeItemsFormatted()
-// 	if err != nil {
-// 		return c.sendMessage(userID, err.Error())
-// 	}
+func (c *TgCommandHandler) CommandTopVolumeItems(userID int64) error {
+	// 取得交易量前20名資料
+	messageText, err := c.tgService.GetTopVolumeItemsFormatted()
+	if err != nil {
+		return c.sendMessage(userID, err.Error())
+	}
 
-// 	return c.sendMessageHTML(userID, messageText)
-// }
+	return c.sendMessageHTML(userID, messageText)
+}
 
 // CommandStockInfo 處理 /i 命令 - 股票資訊（可指定日期）
 func (c *TgCommandHandler) CommandStockInfo(userID int64, symbol, date string) error {

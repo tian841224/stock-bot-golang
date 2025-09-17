@@ -55,8 +55,8 @@ func (s *TgService) GetTodayStockPrice(symbol string) (string, error) {
 漲跌幅：%s%.2f (%s)
 最高價：%.2f
 最低價：%.2f
-成交股數：%d
-成交筆數：%d</code>`,
+成交股數：%s
+成交筆數：%s</code>`,
 		stockInfo.Date,
 		stockInfo.StockName, stockInfo.StockID, emoji,
 		stockInfo.OpenPrice,
@@ -138,40 +138,40 @@ func (s *TgService) GetYahooStockNews(symbol string) (string, error) {
 }
 
 // GetTopVolumeItemsFormatted 取得格式化的交易量前20名
-// func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
-// 	topItems, err := s.stockService.GetTopVolumeItems()
-// 	if err != nil {
-// 		logger.Log.Error("取得交易量前20名失敗", zap.Error(err))
-// 		return "", fmt.Errorf("查無資料，請確認後再試")
-// 	}
+func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
+	topItems, err := s.stockService.GetTopVolumeItems()
+	if err != nil {
+		logger.Log.Error("取得交易量前20名失敗", zap.Error(err))
+		return "", fmt.Errorf("查無資料，請確認後再試")
+	}
 
-// 	if len(topItems) == 0 {
-// 		return "", fmt.Errorf("查無資料，請確認後再試")
-// 	}
+	if len(topItems) == 0 {
+		return "", fmt.Errorf("查無資料，請確認後再試")
+	}
 
-// 	messageText := "🔝<b>今日交易量前二十</b>\n\n"
+	messageText := "🔝<b>今日交易量前二十</b>\n\n"
 
-// 	for _, item := range topItems {
-// 		emoji := ""
-// 		if item.UpDownSign == "+" {
-// 			emoji = "📈"
-// 		} else if item.UpDownSign == "-" {
-// 			emoji = "📉"
-// 		}
+	for _, item := range topItems {
+		emoji := ""
+		if item.UpDownSign == "+" {
+			emoji = "📈"
+		} else if item.UpDownSign == "-" {
+			emoji = "📉"
+		}
 
-// 		messageText += fmt.Sprintf("%s<b>%s (%s)</b>\n<code>", emoji, item.StockName, item.StockID)
-// 		messageText += fmt.Sprintf("成交股數：%d\n", item.Volume)
-// 		messageText += fmt.Sprintf("成交筆數：%d\n", item.Transaction)
-// 		messageText += fmt.Sprintf("開盤價：%.2f\n", item.OpenPrice)
-// 		messageText += fmt.Sprintf("收盤價：%.2f\n", item.ClosePrice)
-// 		messageText += fmt.Sprintf("漲跌幅：%s%.2f (%s)\n", item.UpDownSign, item.ChangeAmount, item.PercentageChange)
-// 		messageText += fmt.Sprintf("最高價：%.2f\n", item.HighPrice)
-// 		messageText += fmt.Sprintf("最低價：%.2f\n", item.LowPrice)
-// 		messageText += "</code>\n"
-// 	}
+		messageText += fmt.Sprintf("%s<b>%s (%s)</b>\n<code>", emoji, item.StockName, item.StockID)
+		messageText += fmt.Sprintf("成交股數：%s\n", item.Volume)
+		messageText += fmt.Sprintf("成交筆數：%s\n", item.Transaction)
+		messageText += fmt.Sprintf("開盤價：%.2f\n", item.OpenPrice)
+		messageText += fmt.Sprintf("收盤價：%.2f\n", item.ClosePrice)
+		messageText += fmt.Sprintf("漲跌幅：%s%.2f (%s)\n", item.UpDownSign, item.ChangeAmount, item.PercentageChange)
+		messageText += fmt.Sprintf("最高價：%.2f\n", item.HighPrice)
+		messageText += fmt.Sprintf("最低價：%.2f\n", item.LowPrice)
+		messageText += "</code>\n"
+	}
 
-// 	return messageText, nil
-// }
+	return messageText, nil
+}
 
 // GetStockPriceByDate 取得指定日期的股價資訊
 func (s *TgService) GetStockPriceByDate(symbol, date string) (string, error) {
@@ -205,8 +205,8 @@ func (s *TgService) GetStockPriceByDate(symbol, date string) (string, error) {
 漲跌幅：%s%.2f (%s)
 最高價：%.2f
 最低價：%.2f
-成交股數：%d
-成交筆數：%d</code>`,
+成交股數：%s
+成交筆數：%s</code>`,
 		displayDate,
 		stockInfo.StockName, stockInfo.StockID, emoji,
 		stockInfo.OpenPrice,

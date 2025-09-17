@@ -2,6 +2,7 @@ package twstock
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,8 +38,6 @@ func NewStockService(
 }
 
 // ========== 資料結構定義 ==========
-
-// StockPriceInfo 股票價格資訊
 
 // MarketInfo 市場資訊
 type MarketInfo struct {
@@ -124,8 +123,8 @@ func (s *StockService) GetStockPrice(stockID string, date ...string) (*stockDto.
 		ClosePrice:       latestData.Close,
 		HighPrice:        latestData.Max,
 		LowPrice:         latestData.Min,
-		Volume:           int64(latestData.TradingVolume),
-		Transaction:      int64(latestData.TradingTurnover),
+		Volume:           s.formatNumberWithCommas(int64(latestData.TradingVolume)),
+		Transaction:      s.formatNumberWithCommas(int64(latestData.TradingTurnover)),
 		ChangeAmount:     changeAmount,
 		PercentageChange: percentageChange,
 		UpDownSign:       upDownSign,
@@ -301,74 +300,81 @@ func (s *StockService) GetDailyMarketInfo(count int) ([]*MarketInfo, error) {
 	return result, nil
 }
 
-// // GetTopVolumeItems 取得交易量前20名
-// func (s *StockService) GetTopVolumeItems() ([]*StockPriceInfo, error) {
-// 	logger.Log.Info("取得交易量前20名")
+// GetTopVolumeItems 取得交易量前20名
+func (s *StockService) GetTopVolumeItems() ([]*stockDto.StockPriceInfo, error) {
+	logger.Log.Info("取得交易量前20名")
 
-// 	// 呼叫 TWSE API
-// 	response, err := s.twseAPI.GetTopVolumeItems()
-// 	if err != nil {
-// 		logger.Log.Error("呼叫 TWSE API 失敗", zap.Error(err))
-// 		return nil, err
-// 	}
+	// 呼叫 TWSE API
+	response, err := s.twseAPI.GetTopVolumeItems()
+	if err != nil {
+		logger.Log.Error("呼叫 TWSE API 失敗", zap.Error(err))
+		return nil, err
+	}
 
-// 	if len(response.Data) == 0 {
-// 		return nil, fmt.Errorf("查無交易量資料")
-// 	}
+	if len(response.Data) == 0 {
+		return nil, fmt.Errorf("查無交易量資料")
+	}
 
-// 	var result []*StockPriceInfo
-// 	for _, item := range response.Data {
-// 		if len(item) < 12 {
-// 			continue
-// 		}
+	var result []*stockDto.StockPriceInfo
+	for _, item := range response.Data {
+		if len(item) < 12 {
+			continue
+		}
 
-// 		// 解析資料 (根據 TWSE API 格式)
-// 		stockID := fmt.Sprintf("%v", item[1])
-// 		stockName := fmt.Sprintf("%v", item[2])
+		// 解析資料 (根據 TWSE API 格式)
+		stockID := fmt.Sprintf("%v", item[1])
+		stockName := fmt.Sprintf("%v", item[2])
 
-// 		// 轉換價格
-// 		openPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[5]), 64)
-// 		highPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[6]), 64)
-// 		lowPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[7]), 64)
-// 		closePrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[8]), 64)
+		// 轉換價格
+		openPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[5]), 64)
+		highPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[6]), 64)
+		lowPrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[7]), 64)
+		closePrice, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[8]), 64)
 
-// 		// 轉換成交量和筆數
-// 		volume, _ := strconv.ParseInt(fmt.Sprintf("%v", item[3]), 10, 64)
-// 		transaction, _ := strconv.ParseInt(fmt.Sprintf("%v", item[4]), 10, 64)
+		// 轉換成交量和筆數（格式化為有千分位的字串）
+		volumeStr := strings.ReplaceAll(fmt.Sprintf("%v", item[3]), ",", "")
+		transactionStr := strings.ReplaceAll(fmt.Sprintf("%v", item[4]), ",", "")
 
-// 		// 計算漲跌幅
-// 		changeAmount := closePrice - openPrice
-// 		percentageChange := "0.00%"
-// 		if openPrice != 0 {
-// 			percentageChange = fmt.Sprintf("%.2f%%", (changeAmount/openPrice)*100)
-// 		}
+		// 轉換為數字後再格式化為千分位字串
+		volumeInt, _ := strconv.ParseInt(volumeStr, 10, 64)
+		transactionInt, _ := strconv.ParseInt(transactionStr, 10, 64)
 
-// 		upDownSign := ""
-// 		if changeAmount > 0 {
-// 			upDownSign = "+"
-// 		} else if changeAmount < 0 {
-// 			upDownSign = "-"
-// 			changeAmount = -changeAmount
-// 		}
+		volume := s.formatNumberWithCommas(volumeInt)
+		transaction := s.formatNumberWithCommas(transactionInt)
 
-// 		stockInfo := &StockPriceInfo{
-// 			StockID:          stockID,
-// 			StockName:        stockName,
-// 			OpenPrice:        openPrice,
-// 			ClosePrice:       closePrice,
-// 			HighPrice:        highPrice,
-// 			LowPrice:         lowPrice,
-// 			Volume:           volume,
-// 			Transaction:      transaction,
-// 			ChangeAmount:     changeAmount,
-// 			PercentageChange: percentageChange,
-// 			UpDownSign:       upDownSign,
-// 		}
-// 		result = append(result, stockInfo)
-// 	}
+		// 計算漲跌幅
+		changeAmount := closePrice - openPrice
+		percentageChange := "0.00%"
+		if openPrice != 0 {
+			percentageChange = fmt.Sprintf("%.2f%%", (changeAmount/openPrice)*100)
+		}
 
-// 	return result, nil
-// }
+		upDownSign := ""
+		if changeAmount > 0 {
+			upDownSign = "+"
+		} else if changeAmount < 0 {
+			upDownSign = "-"
+			changeAmount = -changeAmount
+		}
+
+		stockInfo := &stockDto.StockPriceInfo{
+			StockID:          stockID,
+			StockName:        stockName,
+			OpenPrice:        openPrice,
+			ClosePrice:       closePrice,
+			HighPrice:        highPrice,
+			LowPrice:         lowPrice,
+			Volume:           volume,
+			Transaction:      transaction,
+			ChangeAmount:     changeAmount,
+			PercentageChange: percentageChange,
+			UpDownSign:       upDownSign,
+		}
+		result = append(result, stockInfo)
+	}
+
+	return result, nil
+}
 
 // GetAfterTradingVolume 取得盤後資訊
 func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.AfterTradingVolumeResponseDto, error) {
@@ -519,4 +525,25 @@ func (s *StockService) percentageChange(changeAmount, openPrice float64) string 
 		return "0.00%"
 	}
 	return fmt.Sprintf("%.2f%%", (changeAmount/openPrice)*100)
+}
+
+// formatNumberWithCommas 將數字格式化為千分位字串
+func (s *StockService) formatNumberWithCommas(num int64) string {
+	str := strconv.FormatInt(num, 10)
+
+	// 如果數字小於 1000，直接返回
+	if len(str) <= 3 {
+		return str
+	}
+
+	// 從右邊開始，每三位加一個逗號
+	result := ""
+	for i, char := range str {
+		if i > 0 && (len(str)-i)%3 == 0 {
+			result += ","
+		}
+		result += string(char)
+	}
+
+	return result
 }

@@ -8,9 +8,9 @@ type StockPriceInfo struct {
 	ClosePrice       float64 `json:"close_price"`
 	HighPrice        float64 `json:"high_price"`
 	LowPrice         float64 `json:"low_price"`
-	Volume           int64   `json:"volume"`
-	Transaction      int64   `json:"transaction"`
-	Amount           int64   `json:"amount"`
+	Volume           string  `json:"volume"`
+	Transaction      string  `json:"transaction"`
+	Amount           string  `json:"amount"`
 	ChangeAmount     float64 `json:"change_amount"`
 	PercentageChange string  `json:"percentage_change"`
 	UpDownSign       string  `json:"up_down_sign"`
