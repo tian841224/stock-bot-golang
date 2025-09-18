@@ -85,16 +85,23 @@ func (s *TgService) GetStockPerformanceWithChart(symbol string, chartType string
 	}
 
 	// 取得績效和圖表
-	performanceData, err := s.stockService.GetStockPerformanceWithChart(symbol, chartType)
+	performanceChartData, err := s.stockService.GetStockPerformanceWithChart(symbol, chartType)
+	if err != nil {
+		logger.Log.Error("取得股票績效失敗", zap.Error(err))
+		return nil, "", fmt.Errorf("取得績效資料失敗，請稍後再試")
+	}
+
+	// 取得績效
+	performanceData, err := s.stockService.GetStockPerformance(symbol)
 	if err != nil {
 		logger.Log.Error("取得股票績效失敗", zap.Error(err))
 		return nil, "", fmt.Errorf("取得績效資料失敗，請稍後再試")
 	}
 
 	// 格式化績效資料為文字表格
-	formattedText := fmt.Sprintf("<b>%s(%s) 績效表現 ✨</b>", stockName, symbol)
+	formattedText := s.formatPerformanceTable(stockName, symbol, performanceData)
 
-	return performanceData.ChartData, formattedText, nil
+	return performanceChartData.ChartData, formattedText, nil
 }
 
 // GetStockNews 取得股票新聞
