@@ -75,9 +75,9 @@ func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
 	case "/d":
 		return s.commandHandler.CommandTodayStockPrice(userID, arg1, arg2)
 	case "/n":
-		return s.commandHandler.CommandNews(userID, arg1)
+		return s.commandHandler.sendMessage(userID, "新聞功能暫時停用")
 	case "/yn":
-		return s.commandHandler.CommandYahooNews(userID, arg1)
+		return s.commandHandler.sendMessage(userID, "Yahoo新聞功能暫時停用")
 	case "/m":
 		count := 1
 		if arg1 != "" {

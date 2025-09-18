@@ -134,16 +134,15 @@ func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date str
 	var err error
 
 	// 根據是否有日期參數決定呼叫哪個方法
-	if date == "" {
-		// 查詢今日股價
-		message, err = c.tgService.GetTodayStockPrice(symbol)
-	} else {
+	if date != "" {
 		// 驗證日期格式
 		if !c.isValidDateFormat(date) {
 			return c.sendMessage(userID, "日期格式錯誤，請使用 YYYY-MM-DD 格式\n例如：2025-09-01")
 		}
 		// 查詢指定日期股價
 		message, err = c.tgService.GetStockPriceByDate(symbol, date)
+	} else {
+		message, err = c.tgService.GetStockPriceByDate(symbol, time.Now().Format("2006-01-02"))
 	}
 
 	if err != nil {
@@ -154,58 +153,25 @@ func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date str
 	return c.sendMessageHTML(userID, message)
 }
 
-// isValidDateFormat 驗證日期格式是否為 YYYY-MM-DD
-func (c *TgCommandHandler) isValidDateFormat(date string) bool {
-	// 檢查長度
-	if len(date) != 10 {
-		return false
-	}
-
-	// 使用正則表達式驗證格式
-	matched, err := regexp.MatchString(`^\d{4}-\d{2}-\d{2}$`, date)
-	if err != nil || !matched {
-		return false
-	}
-
-	// 嘗試解析日期以確保是有效日期
-	_, err = time.Parse("2006-01-02", date)
-	return err == nil
-}
-
 // CommandNews 處理 /n 命令 - 股票新聞
-func (c *TgCommandHandler) CommandNews(userID int64, symbol string) error {
-	if symbol == "" {
-		return c.sendMessage(userID, "請輸入股票代號")
-	}
+// func (c *TgCommandHandler) CommandNews(userID int64, symbol string) error {
+// 	if symbol == "" {
+// 		return c.sendMessage(userID, "請輸入股票代號")
+// 	}
 
-	// 取得新聞資料
-	message, err := c.tgService.GetStockNews(symbol)
-	if err != nil {
-		return c.sendMessage(userID, err.Error())
-	}
+// 	// 取得新聞資料
+// 	message, err := c.tgService.GetStockNews(symbol)
+// 	if err != nil {
+// 		return c.sendMessage(userID, err.Error())
+// 	}
 
-	return c.sendMessage(userID, message)
-}
-
-// CommandYahooNews 處理 /yn 命令 - Yahoo 股票新聞
-func (c *TgCommandHandler) CommandYahooNews(userID int64, symbol string) error {
-	if symbol == "" {
-		return c.sendMessage(userID, "請輸入股票代號")
-	}
-
-	// 取得 Yahoo 新聞資料
-	message, err := c.tgService.GetYahooStockNews(symbol)
-	if err != nil {
-		return c.sendMessage(userID, err.Error())
-	}
-
-	return c.sendMessage(userID, message)
-}
+// 	return c.sendMessage(userID, message)
+// }
 
 // CommandDailyMarketInfo 處理 /m 命令 - 大盤資訊
 func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error {
 	// 呼叫業務邏輯
-	messageText, err := c.tgService.GetDailyMarketInfoFormatted(count)
+	messageText, err := c.tgService.GetDailyMarketInfo(count)
 	if err != nil {
 		return c.sendMessage(userID, err.Error())
 	}
@@ -232,7 +198,7 @@ func (c *TgCommandHandler) CommandStockInfo(userID int64, symbol, date string) e
 	}
 
 	// 取得股票資訊
-	message, err := c.tgService.GetStockPriceByDate(symbol, date)
+	message, err := c.tgService.GetStockInfo(symbol)
 	if err != nil {
 		return c.sendMessage(userID, err.Error())
 	}
@@ -382,4 +348,22 @@ func (c *TgCommandHandler) sendMessageHTML(chatID int64, text string) error {
 		logger.Log.Error("發送 HTML 訊息失敗", zap.Error(err))
 	}
 	return err
+}
+
+// isValidDateFormat 驗證日期格式是否為 YYYY-MM-DD
+func (c *TgCommandHandler) isValidDateFormat(date string) bool {
+	// 檢查長度
+	if len(date) != 10 {
+		return false
+	}
+
+	// 使用正則表達式驗證格式
+	matched, err := regexp.MatchString(`^\d{4}-\d{2}-\d{2}$`, date)
+	if err != nil || !matched {
+		return false
+	}
+
+	// 嘗試解析日期以確保是有效日期
+	_, err = time.Parse("2006-01-02", date)
+	return err == nil
 }

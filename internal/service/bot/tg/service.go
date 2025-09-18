@@ -2,9 +2,11 @@ package tg
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"stock-bot/internal/repository"
+	cnyesDto "stock-bot/internal/service/cnyes/dto"
 	"stock-bot/internal/service/twstock"
 	stockDto "stock-bot/internal/service/twstock/dto"
 	"stock-bot/pkg/logger"
@@ -25,49 +27,6 @@ func NewTgService(
 		stockService:         stockService,
 		userSubscriptionRepo: userSubscriptionRepo,
 	}
-}
-
-// GetTodayStockPrice 取得今日股價詳細資訊
-func (s *TgService) GetTodayStockPrice(symbol string) (string, error) {
-	if symbol == "" {
-		return "", fmt.Errorf("股票代號不能為空")
-	}
-
-	// 取得今日股價資訊
-	stockInfo, err := s.stockService.GetStockPrice(symbol)
-	if err != nil {
-		logger.Log.Error("取得今日股價失敗", zap.Error(err))
-		return "", fmt.Errorf("查無此股票資料，請重新確認")
-	}
-
-	// 建立今日股價詳細訊息
-	emoji := ""
-	if stockInfo.UpDownSign == "+" {
-		emoji = "📈"
-	} else if stockInfo.UpDownSign == "-" {
-		emoji = "📉"
-	}
-
-	message := fmt.Sprintf(`<b>%s</b>
-<b>─── %s (%s) %s ───</b>
-<code>開盤價：%.2f
-收盤價：%.2f
-漲跌幅：%s%.2f (%s)
-最高價：%.2f
-最低價：%.2f
-成交股數：%s
-成交筆數：%s</code>`,
-		stockInfo.Date,
-		stockInfo.StockName, stockInfo.StockID, emoji,
-		stockInfo.OpenPrice,
-		stockInfo.ClosePrice,
-		stockInfo.UpDownSign, stockInfo.ChangeAmount, stockInfo.PercentageChange,
-		stockInfo.HighPrice,
-		stockInfo.LowPrice,
-		stockInfo.Volume,
-		stockInfo.Transaction)
-
-	return message, nil
 }
 
 // GetStockKlineImage 取得股票 K 線圖
@@ -220,6 +179,17 @@ func (s *TgService) GetStockPriceByDate(symbol, date string) (string, error) {
 	return message, nil
 }
 
+func (s *TgService) GetStockInfo(symbol string) (string, error) {
+	stockInfo, err := s.stockService.GetStockInfo(symbol)
+	if err != nil {
+		logger.Log.Error("取得股票詳細資訊失敗", zap.Error(err))
+		return "", fmt.Errorf("查無資料，請確認後再試")
+	}
+
+	message := s.formatStockInfoMessage(stockInfo)
+	return message, nil
+}
+
 // AddUserStockSubscription 新增使用者股票訂閱
 func (s *TgService) AddUserStockSubscription(userID uint, symbol string) (string, error) {
 	// 驗證股票代號
@@ -329,8 +299,8 @@ func (s *TgService) convertTimeRange(timeRange string) string {
 	}
 }
 
-// GetDailyMarketInfoFormatted 取得格式化的大盤資訊
-func (s *TgService) GetDailyMarketInfoFormatted(count int) (string, error) {
+// GetDailyMarketInfo 取得大盤資訊
+func (s *TgService) GetDailyMarketInfo(count int) (string, error) {
 	marketInfoList, err := s.stockService.GetDailyMarketInfo(count)
 	if err != nil {
 		logger.Log.Error("取得大盤資訊失敗", zap.Error(err))
@@ -378,4 +348,84 @@ func (s *TgService) formatPerformanceTable(stockName, symbol string, performance
 	result += "</pre>"
 
 	return result
+}
+
+// formatStockInfoMessage 格式化股票詳細資訊訊息
+func (s *TgService) formatStockInfoMessage(stockInfo *cnyesDto.StockQuoteInfo) string {
+	var message strings.Builder
+
+	message.WriteString("<pre>")
+	// 股票基本資訊
+	message.WriteString("🏢" + stockInfo.StockName)
+	message.WriteString(" (")
+	message.WriteString(stockInfo.StockID)
+	message.WriteString(")")
+	message.WriteString(" | ")
+	message.WriteString(stockInfo.Industry)
+	message.WriteString(" | ")
+	message.WriteString(stockInfo.Market)
+	message.WriteString("\n\n")
+
+	// // 價格資訊
+	// message.WriteString("現價: ")
+	// message.WriteString(fmt.Sprintf("%.2f", stockInfo.CurrentPrice))
+	// message.WriteString("\n漲跌: ")
+	// message.WriteString(fmt.Sprintf("%+.2f (%.2f%%)", stockInfo.Change, stockInfo.ChangeRate))
+	// message.WriteString("\n開盤: ")
+	// message.WriteString(fmt.Sprintf("%.2f", stockInfo.OpenPrice))
+	// message.WriteString("\n昨收: ")
+	// message.WriteString(fmt.Sprintf("%.2f", stockInfo.PrevClose))
+	// message.WriteString("\n最高: ")
+	// message.WriteString(fmt.Sprintf("%.2f", stockInfo.HighPrice))
+	// message.WriteString("\n最低: ")
+	// message.WriteString(fmt.Sprintf("%.2f", stockInfo.LowPrice))
+	// message.WriteString("\n振幅: ")
+	// message.WriteString(fmt.Sprintf("%.2f%%", stockInfo.Amplitude))
+	// message.WriteString("\n\n")
+
+	// // 成交資訊
+	// volumeStr := fmt.Sprintf("%d", stockInfo.Volume)
+	// if stockInfo.Volume >= 1000 {
+	// 	volumeStr = fmt.Sprintf("%.1fK", float64(stockInfo.Volume)/1000)
+	// }
+	// turnoverStr := fmt.Sprintf("%.2f", stockInfo.Turnover/100000000) // 轉換為億元
+	// message.WriteString("成交量: ")
+	// message.WriteString(volumeStr)
+	// message.WriteString(" 張\n成交額: ")
+	// message.WriteString(turnoverStr)
+	// message.WriteString(" 億\n週轉率: ")
+	// message.WriteString(fmt.Sprintf("%.3f%%", stockInfo.VolumeRatio*100))
+	// message.WriteString("\n\n")
+
+	// 財務指標
+	message.WriteString("💼財務指標:\n")
+	message.WriteString("本益比: ")
+	message.WriteString(fmt.Sprintf("%.2f", stockInfo.PE))
+	message.WriteString("\n本淨比: ")
+	message.WriteString(fmt.Sprintf("%.2f", stockInfo.PB))
+	message.WriteString("\n市值: ")
+	marketCapStr := fmt.Sprintf("%.2f", stockInfo.MarketCap/1000000000000) // 轉換為兆元
+	message.WriteString(marketCapStr)
+	message.WriteString(" 兆\n每股淨值: ")
+	message.WriteString(fmt.Sprintf("%.2f", stockInfo.BookValue))
+	message.WriteString("\n近四季EPS: ")
+	message.WriteString(fmt.Sprintf("%.2f", stockInfo.EPS))
+	message.WriteString("\n營季EPS: ")
+	message.WriteString(fmt.Sprintf("%.2f", stockInfo.QuarterEPS))
+	message.WriteString("\n年股利: ")
+	message.WriteString(fmt.Sprintf("%.2f", stockInfo.Dividend))
+	message.WriteString("\n殖利率: ")
+	message.WriteString(fmt.Sprintf("%.2f%%", stockInfo.DividendRate))
+	message.WriteString("\n\n")
+
+	// 獲利能力
+	message.WriteString("💡獲利能力:\n")
+	message.WriteString("毛利率: ")
+	message.WriteString(fmt.Sprintf("%.2f%%", stockInfo.GrossMargin))
+	message.WriteString("\n營益率: ")
+	message.WriteString(fmt.Sprintf("%.2f%%", stockInfo.OperMargin))
+	message.WriteString("\n淨利率: ")
+	message.WriteString(fmt.Sprintf("%.2f%%", stockInfo.NetMargin))
+	message.WriteString("</pre>")
+	return message.String()
 }

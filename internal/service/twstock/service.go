@@ -6,13 +6,18 @@ import (
 	"strings"
 	"time"
 
+	"stock-bot/internal/infrastructure/cnyes"
+	cnyesInfraDto "stock-bot/internal/infrastructure/cnyes/dto"
 	"stock-bot/internal/infrastructure/finmindtrade"
 	"stock-bot/internal/infrastructure/finmindtrade/dto"
 	"stock-bot/internal/infrastructure/twse"
 	twseDto "stock-bot/internal/infrastructure/twse/dto"
 	"stock-bot/internal/repository"
+	cnyesDto "stock-bot/internal/service/cnyes/dto"
 	stockDto "stock-bot/internal/service/twstock/dto"
+
 	"stock-bot/pkg/logger"
+	"stock-bot/pkg/utils"
 
 	"go.uber.org/zap"
 )
@@ -21,6 +26,7 @@ import (
 type StockService struct {
 	finmindClient finmindtrade.FinmindTradeAPIInterface
 	twseAPI       *twse.TwseAPI
+	cnyesAPI      *cnyes.CnyesAPI
 	symbolsRepo   repository.SymbolRepository
 }
 
@@ -28,11 +34,13 @@ type StockService struct {
 func NewStockService(
 	finmindClient finmindtrade.FinmindTradeAPIInterface,
 	twseAPI *twse.TwseAPI,
+	cnyesAPI *cnyes.CnyesAPI,
 	symbolsRepo repository.SymbolRepository,
 ) *StockService {
 	return &StockService{
 		finmindClient: finmindClient,
 		twseAPI:       twseAPI,
+		cnyesAPI:      cnyesAPI,
 		symbolsRepo:   symbolsRepo,
 	}
 }
@@ -56,7 +64,7 @@ type NewsInfo struct {
 	Date  string `json:"date"`
 }
 
-// ========== 股票價格相關方法 ==========
+// ========== Finmindtrade相關方法 ==========
 
 // GetStockPrice 取得股票價格資訊
 func (s *StockService) GetStockPrice(stockID string, date ...string) (*stockDto.StockPriceInfo, error) {
@@ -123,15 +131,13 @@ func (s *StockService) GetStockPrice(stockID string, date ...string) (*stockDto.
 		ClosePrice:       latestData.Close,
 		HighPrice:        latestData.Max,
 		LowPrice:         latestData.Min,
-		Volume:           s.formatNumberWithCommas(int64(latestData.TradingVolume)),
-		Transaction:      s.formatNumberWithCommas(int64(latestData.TradingTurnover)),
+		Volume:           utils.FormatNumberWithCommas(int64(latestData.TradingVolume)),
+		Transaction:      utils.FormatNumberWithCommas(int64(latestData.TradingTurnover)),
 		ChangeAmount:     changeAmount,
 		PercentageChange: percentageChange,
 		UpDownSign:       upDownSign,
 	}, nil
 }
-
-// ========== 股票績效分析方法 ==========
 
 // GetStockPerformance 取得股票績效
 func (s *StockService) GetStockPerformance(stockID string) (*stockDto.StockPerformanceResponseDto, error) {
@@ -339,8 +345,8 @@ func (s *StockService) GetTopVolumeItems() ([]*stockDto.StockPriceInfo, error) {
 		volumeInt, _ := strconv.ParseInt(volumeStr, 10, 64)
 		transactionInt, _ := strconv.ParseInt(transactionStr, 10, 64)
 
-		volume := s.formatNumberWithCommas(volumeInt)
-		transaction := s.formatNumberWithCommas(transactionInt)
+		volume := utils.FormatNumberWithCommas(volumeInt)
+		transaction := utils.FormatNumberWithCommas(transactionInt)
 
 		// 計算漲跌幅
 		changeAmount := closePrice - openPrice
@@ -402,25 +408,25 @@ func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.Afte
 		if len(row) < 13 {
 			continue
 		}
-		if strings.TrimSpace(s.toString(row[0])) != strings.TrimSpace(symbol) {
+		if strings.TrimSpace(utils.ToString(row[0])) != strings.TrimSpace(symbol) {
 			continue
 		}
 
-		openPrice := s.toFloat(row[5])
-		changeAmount := s.toFloat(row[10])
-		percentage := s.percentageChange(changeAmount, openPrice)
+		openPrice := utils.ToFloat(row[5])
+		changeAmount := utils.ToFloat(row[10])
+		percentage := utils.PercentageChange(changeAmount, openPrice)
 
 		result := &twseDto.AfterTradingVolumeResponseDto{
-			StockId:          s.toString(row[0]),
-			StockName:        s.toString(row[1]),
-			Volume:           s.toString(row[2]),
-			Transaction:      s.toString(row[3]),
-			Amount:           s.toString(row[4]),
+			StockId:          utils.ToString(row[0]),
+			StockName:        utils.ToString(row[1]),
+			Volume:           utils.ToString(row[2]),
+			Transaction:      utils.ToString(row[3]),
+			Amount:           utils.ToString(row[4]),
 			OpenPrice:        openPrice,
-			ClosePrice:       s.toFloat(row[8]),
-			HighPrice:        s.toFloat(row[6]),
-			LowPrice:         s.toFloat(row[7]),
-			UpDownSign:       s.extractUpDownSign(s.toString(row[9])),
+			ClosePrice:       utils.ToFloat(row[8]),
+			HighPrice:        utils.ToFloat(row[6]),
+			LowPrice:         utils.ToFloat(row[7]),
+			UpDownSign:       utils.ExtractUpDownSign(utils.ToString(row[9])),
 			ChangeAmount:     changeAmount,
 			PercentageChange: percentage,
 		}
@@ -463,6 +469,73 @@ func (s *StockService) GetStockAnalysis(stockID string) ([]byte, string, error) 
 	return []byte{}, stockName, nil
 }
 
+// GetStockInfo 取得股票詳細資訊
+func (s *StockService) GetStockInfo(stockID string) (*cnyesDto.StockQuoteInfo, error) {
+	logger.Log.Info("取得股票詳細資訊", zap.String("stockID", stockID))
+
+	response, err := s.cnyesAPI.GetStockQuote(stockID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 檢查回應狀態
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("API回應錯誤: %s", response.Message)
+	}
+
+	// 檢查是否有資料
+	if len(response.Data) == 0 {
+		return nil, fmt.Errorf("查無股票資料: %s", stockID)
+	}
+
+	// 格式化資料（取第一筆）
+	stockInfo := s.FormatStockQuote(response.Data[0])
+	return stockInfo, nil
+}
+
+func (s *StockService) FormatStockQuote(data cnyesInfraDto.CnyesStockQuoteDataDto) *cnyesDto.StockQuoteInfo {
+	return &cnyesDto.StockQuoteInfo{
+		StockID:      data.StockID,
+		StockName:    data.StockName,
+		Industry:     data.Industry,
+		Market:       data.Market,
+		CurrentPrice: data.CurrentPrice,
+		Change:       data.Change,
+		ChangeRate:   data.ChangeRate,
+		OpenPrice:    data.OpenPrice,
+		HighPrice:    data.HighPrice,
+		LowPrice:     data.LowPrice,
+		PrevClose:    data.PrevClose,
+		Volume:       int64(data.Volume),
+		Turnover:     data.Turnover,
+		VolumeRatio:  data.VolumeRatio,
+		Amplitude:    data.Amplitude,
+		PE:           data.PE,
+		PB:           data.PB,
+		MarketCap:    data.MarketCap,
+		BookValue:    data.BookValue,
+		EPS:          data.EPS,
+		QuarterEPS:   data.QuarterEPS,
+		Dividend:     data.Dividend,
+		DividendRate: data.DividendRate,
+		GrossMargin:  data.GrossMargin,
+		OperMargin:   data.OperMargin,
+		NetMargin:    data.NetMargin,
+		UpperLimit:   data.UpperLimit,
+		LowerLimit:   data.LowerLimit,
+		High52W:      data.High52W,
+		Low52W:       data.Low52W,
+		High52WDate:  data.High52WDate,
+		Low52WDate:   data.Low52WDate,
+		BidPrices:    []float64{data.BidPrice1, data.BidPrice2, data.BidPrice3, data.BidPrice4, data.BidPrice5},
+		AskPrices:    []float64{data.AskPrice1, data.AskPrice2, data.AskPrice3, data.AskPrice4, data.AskPrice5},
+		OutVolume:    int64(data.OutVolume),
+		InVolume:     int64(data.InVolume),
+		OutRatio:     data.OutRatio,
+		InRatio:      data.InRatio,
+	}
+}
+
 // ========== 驗證相關方法 ==========
 
 // ValidateStockID 驗證股票代號是否存在
@@ -474,76 +547,4 @@ func (s *StockService) ValidateStockID(stockID string) (bool, string, error) {
 	}
 
 	return false, "", nil
-}
-
-// ========== 輔助函數 ==========
-
-// toString 將 interface{} 轉換為字串
-func (s *StockService) toString(v interface{}) string {
-	str := fmt.Sprint(v)
-	str = strings.TrimSpace(str)
-	return str
-}
-
-// toFloat 將 interface{} 轉換為浮點數
-func (s *StockService) toFloat(v interface{}) float64 {
-	str := s.toString(v)
-	if str == "--" || str == "" {
-		return 0
-	}
-	str = strings.ReplaceAll(str, ",", "")
-	str = strings.ReplaceAll(str, "％", "")
-	if str == "+" || str == "-" {
-		return 0
-	}
-	var f float64
-	_, err := fmt.Sscan(str, &f)
-	if err != nil {
-		return 0
-	}
-	return f
-}
-
-// extractUpDownSign 提取漲跌符號
-func (s *StockService) extractUpDownSign(str string) string {
-	str = strings.TrimSpace(str)
-	if str == "" {
-		return ""
-	}
-	if strings.Contains(str, "+") || strings.Contains(str, "＋") {
-		return "+"
-	}
-	if strings.Contains(str, "-") || strings.Contains(str, "－") {
-		return "-"
-	}
-	return ""
-}
-
-// percentageChange 計算漲跌幅
-func (s *StockService) percentageChange(changeAmount, openPrice float64) string {
-	if openPrice == 0 {
-		return "0.00%"
-	}
-	return fmt.Sprintf("%.2f%%", (changeAmount/openPrice)*100)
-}
-
-// formatNumberWithCommas 將數字格式化為千分位字串
-func (s *StockService) formatNumberWithCommas(num int64) string {
-	str := strconv.FormatInt(num, 10)
-
-	// 如果數字小於 1000，直接返回
-	if len(str) <= 3 {
-		return str
-	}
-
-	// 從右邊開始，每三位加一個逗號
-	result := ""
-	for i, char := range str {
-		if i > 0 && (len(str)-i)%3 == 0 {
-			result += ","
-		}
-		result += string(char)
-	}
-
-	return result
 }
