@@ -1,7 +1,8 @@
 package twstock
 
 type StockPerformanceResponseDto struct {
-	Data []StockPerformanceData `json:"data"`
+	Data      []StockPerformanceData `json:"data"`
+	ChartData []byte                 `json:"chart_data,omitempty"`
 }
 
 type StockPerformanceData struct {

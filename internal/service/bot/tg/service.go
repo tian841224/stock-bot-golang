@@ -76,6 +76,27 @@ func (s *TgService) GetStockPerformance(symbol string) (string, error) {
 	return formattedText, nil
 }
 
+// GetStockPerformanceWithChart 取得股票績效並生成圖表
+func (s *TgService) GetStockPerformanceWithChart(symbol string, chartType string) ([]byte, string, error) {
+	// 驗證股票代號並取得基本資訊
+	valid, stockName, err := s.stockService.ValidateStockID(symbol)
+	if err != nil || !valid {
+		return nil, "", fmt.Errorf("查無此股票代號，請重新確認")
+	}
+
+	// 取得績效和圖表
+	performanceData, err := s.stockService.GetStockPerformanceWithChart(symbol, chartType)
+	if err != nil {
+		logger.Log.Error("取得股票績效失敗", zap.Error(err))
+		return nil, "", fmt.Errorf("取得績效資料失敗，請稍後再試")
+	}
+
+	// 格式化績效資料為文字表格
+	formattedText := fmt.Sprintf("<b>%s(%s) 績效表現 ✨</b>", stockName, symbol)
+
+	return performanceData.ChartData, formattedText, nil
+}
+
 // GetStockNews 取得股票新聞
 func (s *TgService) GetStockNews(symbol string) (string, error) {
 	// 驗證股票代號

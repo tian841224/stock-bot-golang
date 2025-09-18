@@ -16,6 +16,7 @@ import (
 	cnyesDto "stock-bot/internal/service/cnyes/dto"
 	stockDto "stock-bot/internal/service/twstock/dto"
 
+	"stock-bot/pkg/imageutil"
 	"stock-bot/pkg/logger"
 	"stock-bot/pkg/utils"
 
@@ -263,6 +264,59 @@ func (s *StockService) GetStockPerformance(stockID string) (*stockDto.StockPerfo
 	}, nil
 }
 
+// GetStockPerformanceWithChart 取得股票績效並生成圖表
+func (s *StockService) GetStockPerformanceWithChart(stockID string, chartType string) (*stockDto.StockPerformanceResponseDto, error) {
+	logger.Log.Info("取得股票績效並生成圖表", zap.String("stockID", stockID), zap.String("chartType", chartType))
+
+	// 先取得績效資料
+	performanceData, err := s.GetStockPriceHistory(stockID)
+	if err != nil {
+		return nil, err
+	}
+
+	performanceResponse := &stockDto.StockPerformanceResponseDto{
+		Data: performanceData,
+	}
+
+	// 取得股票名稱用於圖表標題
+	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(stockID, "TW")
+	if err != nil || symbol == nil {
+		logger.Log.Error("取得股票名稱失敗", zap.Error(err))
+		return nil, fmt.Errorf("查無股票名稱")
+	}
+
+	// 轉換資料格式以供圖表使用
+	chartData := make([]imageutil.PerformanceData, len(performanceData))
+	for i, data := range performanceData {
+		chartData[i] = imageutil.PerformanceData{
+			Period:      data.Period,
+			PeriodName:  data.PeriodName,
+			Performance: data.Performance,
+		}
+	}
+
+	// 生成圖表
+	title := fmt.Sprintf("%s (%s) 績效表現", symbol.Name, stockID)
+	var chartBytes []byte
+
+	if chartType == "bar" {
+		chartBytes, err = imageutil.GeneratePerformanceBarChart(chartData, title)
+	} else {
+		chartBytes, err = imageutil.GeneratePerformanceLineChart(chartData, title)
+	}
+
+	if err != nil {
+		logger.Log.Error("生成圖表失敗", zap.Error(err))
+		// 即使圖表生成失敗，仍然回傳績效資料
+		return performanceResponse, nil
+	}
+
+	// 將圖表資料加入回應
+	performanceResponse.ChartData = chartBytes
+
+	return performanceResponse, nil
+}
+
 // GetDailyMarketInfo 取得大盤資訊
 func (s *StockService) GetDailyMarketInfo(count int) ([]*MarketInfo, error) {
 	logger.Log.Info("取得大盤資訊", zap.Int("count", count))
@@ -491,6 +545,119 @@ func (s *StockService) GetStockInfo(stockID string) (*cnyesDto.StockQuoteInfo, e
 	// 格式化資料（取第一筆）
 	stockInfo := s.FormatStockQuote(response.Data[0])
 	return stockInfo, nil
+}
+
+// GetStockPriceHistory 取得股票每日價格歷史（近1年）
+func (s *StockService) GetStockPriceHistory(stockID string) ([]stockDto.StockPerformanceData, error) {
+	now := time.Now()
+	var performancePeriods []stockDto.StockPerformanceData
+
+	// 取得最近1年的股價資料
+	startDate := now.AddDate(-5, 0, 0)
+	startRequestDto := dto.FinmindtradeRequestDto{
+		DataID:    stockID,
+		StartDate: startDate.Format("2006-01-02"),
+		EndDate:   now.Format("2006-01-02"),
+	}
+
+	priceResponse, err := s.finmindClient.GetTaiwanStockPrice(startRequestDto)
+	if err != nil {
+		logger.Log.Error("取得股價資料失敗", zap.Error(err))
+		return nil, err
+	}
+
+	// 檢查是否有資料
+	if priceResponse.Status != 200 || len(priceResponse.Data) == 0 {
+		return nil, fmt.Errorf("查無股票資料")
+	}
+
+	// 取得分割資料
+	splitRequestDto := dto.FinmindtradeRequestDto{
+		DataID:    stockID,
+		StartDate: "1900-01-01",
+	}
+
+	splitResponse, err := s.finmindClient.GetTaiwanStockSplitPrice(splitRequestDto)
+	if err != nil {
+		logger.Log.Error("取得分割資料失敗", zap.Error(err))
+		return nil, err
+	}
+
+	// 取得基準價格（第一天的收盤價）
+	basePrice := priceResponse.Data[0].Close
+
+	// 處理股票分割對基準價格的影響
+	if len(splitResponse.Data) > 0 {
+		for _, split := range splitResponse.Data {
+			splitDate, err := time.Parse("2006-01-02", split.Date)
+			if err != nil {
+				continue
+			}
+
+			// 如果分割日期在基準日期之後，需要調整基準價格
+			baseDateParsed, _ := time.Parse("2006-01-02", priceResponse.Data[0].Date)
+			if splitDate.After(baseDateParsed) {
+				splitRatio := split.AfterPrice / split.BeforePrice
+				basePrice = basePrice * splitRatio
+			}
+		}
+	}
+
+	// 每隔幾天取一個點，避免資料點過多
+	step := len(priceResponse.Data) / 50 // 最多30個點，適合5年資料
+	if step < 1 {
+		step = 1
+	}
+	if step > 50 {
+		step = 50 // 限制最大間隔
+	}
+
+	// 計算每日相對於基準日的累積漲跌幅
+	for i := 0; i < len(priceResponse.Data); i += step {
+		priceData := priceResponse.Data[i]
+		currentPrice := priceData.Close
+
+		// 計算相對於基準價格的漲跌幅
+		changeAmount := currentPrice - basePrice
+		percentageChange := (changeAmount / basePrice) * 100
+
+		// 格式化日期
+		date, _ := time.Parse("2006-01-02", priceData.Date)
+		dateStr := date.Format("2006/01/02")
+
+		periodData := stockDto.StockPerformanceData{
+			Period:      priceData.Date,
+			PeriodName:  dateStr,
+			Performance: fmt.Sprintf("%.2f%%", percentageChange),
+		}
+
+		performancePeriods = append(performancePeriods, periodData)
+	}
+
+	// 確保包含最後一天的資料
+	if len(priceResponse.Data) > 0 {
+		lastIndex := len(priceResponse.Data) - 1
+		if (lastIndex % step) != 0 {
+			priceData := priceResponse.Data[lastIndex]
+			currentPrice := priceData.Close
+
+			changeAmount := currentPrice - basePrice
+			percentageChange := (changeAmount / basePrice) * 100
+
+			date, _ := time.Parse("2006-01-02", priceData.Date)
+			dateStr := date.Format("01/02")
+
+			periodData := stockDto.StockPerformanceData{
+				Period:      priceData.Date,
+				PeriodName:  dateStr,
+				Performance: fmt.Sprintf("%.2f%%", percentageChange),
+			}
+
+			performancePeriods = append(performancePeriods, periodData)
+		}
+	}
+
+	return performancePeriods, nil
 }
 
 func (s *StockService) FormatStockQuote(data cnyesInfraDto.CnyesStockQuoteDataDto) *cnyesDto.StockQuoteInfo {

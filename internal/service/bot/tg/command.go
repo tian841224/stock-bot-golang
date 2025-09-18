@@ -59,6 +59,8 @@ func (c *TgCommandHandler) CommandStart(userID int64) error {
 - /d [股票代碼] - 查詢今日股價詳細資訊
 - /d [股票代碼] [日期] - 查詢指定日期股價 (格式: YYYY-MM-DD)
 - /p [股票代碼] - 查詢股票績效
+- /pc [股票代碼] - 查詢股票績效圖表 (折線圖)
+- /pb [股票代碼] - 查詢股票績效圖表 (柱狀圖)
 - /n [股票代碼] - 查詢股票新聞
 - /yn [股票代碼] - 查詢Yahoo股票新聞（預設：台股新聞）
 - /i [股票代碼] - 查詢當日收盤資訊 (可指定日期 ex: /i 2330 20250101)
@@ -121,6 +123,50 @@ func (c *TgCommandHandler) CommandPerformance(userID int64, symbol string) error
 
 	// 發送HTML格式的表格訊息
 	return c.sendMessageHTML(userID, performanceText)
+}
+
+// CommandPerformanceChart 處理 /pc 命令 - 股票績效圖表 (折線圖)
+func (c *TgCommandHandler) CommandPerformanceChart(userID int64, symbol string) error {
+	if symbol == "" {
+		return c.sendMessage(userID, "請輸入股票代號")
+	}
+
+	// 取得績效圖表資料
+	chartData, caption, err := c.tgService.GetStockPerformanceWithChart(symbol, "line")
+	if err != nil {
+		return c.sendMessage(userID, err.Error())
+	}
+
+	// 檢查是否有圖表資料
+	if len(chartData) == 0 {
+		// 如果沒有圖表資料，發送文字版本
+		return c.sendMessageHTML(userID, caption)
+	}
+
+	// 發送圖表
+	return c.sendPhoto(userID, chartData, caption)
+}
+
+// CommandPerformanceBarChart 處理 /pb 命令 - 股票績效圖表 (柱狀圖)
+func (c *TgCommandHandler) CommandPerformanceBarChart(userID int64, symbol string) error {
+	if symbol == "" {
+		return c.sendMessage(userID, "請輸入股票代號")
+	}
+
+	// 取得績效圖表資料
+	chartData, caption, err := c.tgService.GetStockPerformanceWithChart(symbol, "bar")
+	if err != nil {
+		return c.sendMessage(userID, err.Error())
+	}
+
+	// 檢查是否有圖表資料
+	if len(chartData) == 0 {
+		// 如果沒有圖表資料，發送文字版本
+		return c.sendMessageHTML(userID, caption)
+	}
+
+	// 發送圖表
+	return c.sendPhoto(userID, chartData, caption)
 }
 
 // CommandTodayStockPrice 處理 /d 命令 - 股價詳細資訊（支援日期查詢）
@@ -346,6 +392,34 @@ func (c *TgCommandHandler) sendMessageHTML(chatID int64, text string) error {
 	_, err := c.botClient.Send(msg)
 	if err != nil {
 		logger.Log.Error("發送 HTML 訊息失敗", zap.Error(err))
+	}
+	return err
+}
+
+func (c *TgCommandHandler) sendDocument(chatID int64, data []byte, filename, caption string) error {
+	doc := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{
+		Name:  filename,
+		Bytes: data,
+	})
+	doc.Caption = caption
+	doc.ParseMode = tgbotapi.ModeHTML
+	_, err := c.botClient.Send(doc)
+	if err != nil {
+		logger.Log.Error("發送文件失敗", zap.Error(err))
+	}
+	return err
+}
+
+func (c *TgCommandHandler) sendPhoto(chatID int64, data []byte, caption string) error {
+	photo := tgbotapi.NewPhoto(chatID, tgbotapi.FileBytes{
+		Name:  "chart.png",
+		Bytes: data,
+	})
+	photo.Caption = caption
+	photo.ParseMode = tgbotapi.ModeHTML
+	_, err := c.botClient.Send(photo)
+	if err != nil {
+		logger.Log.Error("發送圖片失敗", zap.Error(err))
 	}
 	return err
 }

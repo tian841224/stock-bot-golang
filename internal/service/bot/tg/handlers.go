@@ -72,6 +72,10 @@ func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
 		return s.commandHandler.CommandKline(userID, arg1, arg2)
 	case "/p":
 		return s.commandHandler.CommandPerformance(userID, arg1)
+	case "/pc":
+		return s.commandHandler.CommandPerformanceChart(userID, arg1)
+	case "/pb":
+		return s.commandHandler.CommandPerformanceBarChart(userID, arg1)
 	case "/d":
 		return s.commandHandler.CommandTodayStockPrice(userID, arg1, arg2)
 	case "/n":
