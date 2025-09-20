@@ -23,14 +23,26 @@ type PerformanceData struct {
 	Performance string
 }
 
+// RevenueChartData 營收圖表資料結構
+type RevenueChartData struct {
+	Period        string  // 期間 (YYYY/MM)
+	PeriodName    string  // 顯示名稱
+	Revenue       int64   // 月營收 (千元)
+	YoY           float64 // 年增率 (%)
+	StockPrice    float64 // 股價
+	LatestRevenue int64   // 最新月營收 (用於顯示)
+	LatestYoY     float64 // 最新年增率 (用於顯示)
+}
+
 // ChartConfig 圖表設定
 type ChartConfig struct {
-	Title      string
-	Width      int
-	Height     int
-	ShowGrid   bool
-	ShowLegend bool
-	ChartType  string // "line" 或 "bar"
+	Title            string
+	Width            int
+	Height           int
+	ShowGrid         bool
+	ShowLegend       bool
+	ChartType        string // "line" 或 "bar"
+	chineseFontPaths []string
 }
 
 // DefaultChartConfig 預設圖表設定
@@ -42,6 +54,12 @@ func DefaultChartConfig() ChartConfig {
 		ShowGrid:   true,
 		ShowLegend: true,
 		ChartType:  "line",
+		chineseFontPaths: []string{
+			"C:\\Windows\\Fonts\\msyh.ttc",   // 微軟雅黑
+			"C:\\Windows\\Fonts\\simsun.ttc", // 宋體
+			"C:\\Windows\\Fonts\\simhei.ttf", // 黑體
+			"C:\\Windows\\Fonts\\simkai.ttf", // 楷體
+		},
 	}
 }
 
@@ -99,7 +117,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	c.SetFontSize(12)
 	c.SetClip(img.Bounds())
 	c.SetDst(img)
-	c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255})) // 黑色文字
+	c.SetSrc(image.NewUniform(color.RGBA{157, 129, 137, 255})) // 黑色文字
 
 	// 解析績效資料
 	values := make([]float64, len(data))
@@ -149,8 +167,8 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	c.SetFontSize(10)
 
 	// 繪製座標軸
-	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+chartHeight, color.RGBA{0, 0, 0, 255})                        // Y軸
-	drawLine(img, chartLeft, chartTop+chartHeight, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{0, 0, 0, 255}) // X軸
+	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+chartHeight, color.RGBA{157, 129, 137, 255})                        // Y軸
+	drawLine(img, chartLeft, chartTop+chartHeight, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{157, 129, 137, 255}) // X軸
 
 	// 繪製格線和軸標籤
 	if config.ShowGrid {
@@ -296,6 +314,21 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	return buf.Bytes(), nil
 }
 
+// drawThickLine 繪製粗線
+func drawThickLine(img *image.RGBA, x1, y1, x2, y2, thickness int, col color.RGBA) {
+	// 使用多條平行線來模擬粗線效果
+	for t := -thickness / 2; t <= thickness/2; t++ {
+		// 垂直和水平方向的偏移
+		if abs(x2-x1) > abs(y2-y1) {
+			// 主要是水平線，在垂直方向偏移
+			drawLine(img, x1, y1+t, x2, y2+t, col)
+		} else {
+			// 主要是垂直線，在水平方向偏移
+			drawLine(img, x1+t, y1, x2+t, y2, col)
+		}
+	}
+}
+
 // drawLine 繪製直線
 func drawLine(img *image.RGBA, x1, y1, x2, y2 int, col color.RGBA) {
 	dx := abs(x2 - x1)
@@ -406,4 +439,312 @@ func GeneratePerformanceBarChart(data []PerformanceData, title string) ([]byte, 
 	config.Title = title
 	config.ChartType = "bar"
 	return GeneratePerformanceChartPNG(data, config)
+}
+
+// GenerateRevenueChartPNG 生成營收圖表 (柱狀圖+折線圖組合)
+func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte, error) {
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("無營收資料可生成圖表")
+	}
+
+	config := DefaultChartConfig()
+	// 圖表設定
+	config = ChartConfig{
+		Title:            fmt.Sprintf("%s 月營收", stockName),
+		Width:            1400, // 增加寬度以容納更多資訊
+		Height:           700,  // 增加高度
+		ShowGrid:         true,
+		ShowLegend:       true,
+		ChartType:        "combo", // 組合圖表
+		chineseFontPaths: config.chineseFontPaths,
+	}
+
+	// 建立圖片
+	img := image.NewRGBA(image.Rect(0, 0, config.Width, config.Height))
+
+	// 填充淺灰色背景
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{245, 245, 245, 255}}, image.Point{}, draw.Src) // 淺灰色背景
+
+	// 載入字型
+	var ttf *truetype.Font
+	var err error
+
+	fontLoaded := false
+	for _, fontPath := range config.chineseFontPaths {
+		if _, err := os.Stat(fontPath); err == nil {
+			fontBytes, err := os.ReadFile(fontPath)
+			if err == nil {
+				ttf, err = truetype.Parse(fontBytes)
+				if err == nil {
+					fontLoaded = true
+					break
+				}
+			}
+		}
+	}
+
+	// 如果找不到中文字型，使用預設字型
+	if !fontLoaded {
+		ttf, err = truetype.Parse(goregular.TTF)
+		if err != nil {
+			return nil, fmt.Errorf("載入字型失敗: %v", err)
+		}
+	}
+
+	// 建立 freetype context
+	c := freetype.NewContext()
+	c.SetDPI(72)
+	c.SetFont(ttf)
+	c.SetFontSize(16) // 增加基礎字型大小
+	c.SetClip(img.Bounds())
+	c.SetDst(img)
+	c.SetSrc(image.NewUniform(color.RGBA{157, 129, 137, 255})) // 黑色文字
+
+	// 計算營收和年增率的範圍
+	minRevenue := data[0].Revenue
+	maxRevenue := data[0].Revenue
+	minYoY := data[0].YoY
+	maxYoY := data[0].YoY
+
+	for _, item := range data {
+		if item.Revenue < minRevenue {
+			minRevenue = item.Revenue
+		}
+		if item.Revenue > maxRevenue {
+			maxRevenue = item.Revenue
+		}
+		if item.YoY < minYoY {
+			minYoY = item.YoY
+		}
+		if item.YoY > maxYoY {
+			maxYoY = item.YoY
+		}
+	}
+
+	// 營收範圍調整
+	revenueMargin := (maxRevenue - minRevenue) * 1 / 10
+	if revenueMargin == 0 {
+		revenueMargin = maxRevenue / 10
+	}
+	minRevenue = 0 // 營收從0開始顯示
+	maxRevenue += revenueMargin
+
+	// 年增率範圍調整
+	yoyMargin := (maxYoY - minYoY) * 1 / 10
+	if yoyMargin == 0 {
+		yoyMargin = 10
+	}
+	minYoY -= yoyMargin
+	maxYoY += yoyMargin
+
+	// 圖表區域
+	chartLeft := 120
+	chartTop := 120
+	chartWidth := config.Width - 240   // 左右各留空間
+	chartHeight := config.Height - 250 // 上下各留空間
+
+	// 繪製標題
+	c.SetFontSize(30) // 增加標題字型大小
+	titleWidth := len(config.Title) * 12
+	titleX := (config.Width - titleWidth) / 2
+	pt := freetype.Pt(titleX, 60)
+	c.DrawString(config.Title, pt)
+
+	// 在右上角顯示最新數據
+	latestData := data[len(data)-1]
+	c.SetFontSize(16) // 增加資訊字型大小
+	infoText := fmt.Sprintf("%s 營收: %.0f億", latestData.PeriodName, float64(latestData.LatestRevenue)/100000)
+	pt = freetype.Pt(config.Width-300, 60)
+	c.DrawString(infoText, pt)
+
+	yoyText := fmt.Sprintf("YoY: %.2f%%", latestData.LatestYoY)
+	pt = freetype.Pt(config.Width-300, 90) // 調整位置
+	// YoY數據使用紅色
+	c.SetSrc(image.NewUniform(color.RGBA{220, 53, 69, 255})) // 紅色
+	c.DrawString(yoyText, pt)
+	c.SetSrc(image.NewUniform(color.RGBA{157, 129, 137, 255})) // 重設為黑色
+
+	c.SetFontSize(16) // 調整基礎字型大小
+
+	// 繪製座標軸
+	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+chartHeight, color.RGBA{157, 129, 137, 255})                        // Y軸
+	drawLine(img, chartLeft, chartTop+chartHeight, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{157, 129, 137, 255}) // X軸
+
+	// 繪製右側Y軸（年增率）
+	drawLine(img, chartLeft+chartWidth, chartTop, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{157, 129, 137, 255})
+
+	// 繪製格線和軸標籤
+	if config.ShowGrid {
+		// 左側Y軸標籤（營收）
+		yGridLines := 5
+		for i := 0; i <= yGridLines; i++ {
+			y := chartTop + (chartHeight * i / yGridLines)
+			value := maxRevenue - ((maxRevenue - minRevenue) * int64(i) / int64(yGridLines))
+
+			// 水平格線
+			if i > 0 && i < yGridLines {
+				drawLine(img, chartLeft, y, chartLeft+chartWidth, y, color.RGBA{216, 226, 220, 180}) // 使用薄荷綠半透明格線
+			}
+
+			// 左側Y軸標籤 (營收，單位：億)
+			label := fmt.Sprintf("%.0f億", float64(value)/100000)
+			pt := freetype.Pt(chartLeft-100, y+5)
+			c.DrawString(label, pt)
+		}
+
+		// 右側Y軸標籤（年增率）
+		for i := 0; i <= yGridLines; i++ {
+			y := chartTop + (chartHeight * i / yGridLines)
+			value := maxYoY - ((maxYoY - minYoY) * float64(i) / float64(yGridLines))
+
+			// 右側Y軸標籤 (年增率)
+			label := fmt.Sprintf("%.0f%%", value)
+			pt := freetype.Pt(chartLeft+chartWidth+10, y+5)
+			c.DrawString(label, pt)
+		}
+
+		// X軸標籤（時間）
+		labelStep := 1
+		if len(data) > 12 {
+			labelStep = 2
+		}
+
+		for i, item := range data {
+			x := chartLeft + (chartWidth * i / (len(data) - 1))
+
+			// 垂直格線
+			if i > 0 && i < len(data)-1 && i%labelStep == 0 {
+				drawLine(img, x, chartTop, x, chartTop+chartHeight, color.RGBA{216, 226, 220, 180}) // 使用薄荷綠半透明格線
+			}
+
+			// X軸標籤
+			if i%labelStep == 0 || i == len(data)-1 {
+				label := item.PeriodName
+				pt := freetype.Pt(x-15, chartTop+chartHeight+25)
+				c.DrawString(label, pt)
+			}
+		}
+	}
+
+	// 繪製柱狀圖（營收）
+	barWidth := chartWidth / len(data) * 6 / 10 // 60% 寬度
+	barSpacing := chartWidth / len(data)
+	barColor := color.RGBA{216, 226, 220, 255} // #d8e2dc 薄荷綠，柔和優雅
+
+	for i, item := range data {
+		// 計算柱狀圖位置
+		x := chartLeft + (barSpacing * i) + (barSpacing-barWidth)/2
+		barHeight := int((item.Revenue - minRevenue) * int64(chartHeight) / (maxRevenue - minRevenue))
+		y := chartTop + chartHeight - barHeight
+
+		// 繪製柱狀圖
+		if barHeight > 0 {
+			drawRect(img, x, y, barWidth, barHeight, barColor)
+		}
+
+		// 在柱狀圖上方顯示營收數字
+		if item.Revenue > 0 {
+			// 格式化營收數字（單位：億）
+			revenueText := fmt.Sprintf("%.0f", float64(item.Revenue)/100000)
+
+			// 計算文字位置（柱狀圖中心上方）
+			textX := x + barWidth/2 - len(revenueText)*3 // 估算文字寬度的一半
+			textY := y - 5                               // 柱狀圖上方5像素
+
+			// 確保文字不會超出圖表頂部
+			if textY < chartTop+15 {
+				textY = chartTop + 15
+			}
+
+			// 設定較小的字型來顯示數值
+			c.SetFontSize(14) // 增加營收數字字型大小
+			pt := freetype.Pt(textX, textY)
+			c.DrawString(revenueText, pt)
+			c.SetFontSize(14) // 重設為原始字型大小
+		}
+	}
+
+	// 繪製折線圖（年增率）
+	lineColor := color.RGBA{244, 172, 183, 255} // #f4acb7 粉紅色，溫柔浪漫
+
+	for i := range data {
+		value := data[i].YoY
+		x := chartLeft + (chartWidth * i / (len(data) - 1))
+		y := chartTop + chartHeight - int((value-minYoY)/(maxYoY-minYoY)*float64(chartHeight))
+
+		// 繪製資料點
+		drawCircle(img, x, y, 5, lineColor) // 增大資料點
+
+		// 在資料點上方顯示YoY百分比
+		yoyText := fmt.Sprintf("%.1f%%", value)
+
+		// 計算文字位置（資料點上方）
+		textX := x - len(yoyText)*3 // 估算文字寬度的一半
+		textY := y - 15             // 資料點上方15像素
+
+		// 確保文字不會超出圖表頂部
+		if textY < chartTop+15 {
+			textY = y + 25 // 如果上方空間不足，顯示在下方
+		}
+
+		// 設定字型來顯示數值
+		c.SetFontSize(16) // 增加年增率字型大小
+		// YoY數字統一使用紅色
+		c.SetSrc(image.NewUniform(color.RGBA{220, 53, 69, 255})) // 紅色
+		pt := freetype.Pt(textX, textY)
+		c.DrawString(yoyText, pt)
+		c.SetSrc(image.NewUniform(color.RGBA{157, 129, 137, 255})) // 重設為黑色
+		c.SetFontSize(16)                                          // 重設為原始字型大小
+
+		// 繪製粗線段 (除了第一個點)
+		if i > 0 {
+			prevValue := data[i-1].YoY
+			prevX := chartLeft + (chartWidth * (i - 1) / (len(data) - 1))
+			prevY := chartTop + chartHeight - int((prevValue-minYoY)/(maxYoY-minYoY)*float64(chartHeight))
+			drawThickLine(img, prevX, prevY, x, y, 3, lineColor) // 使用3像素粗的線
+		}
+	}
+
+	// 零線 (年增率)
+	zeroY := chartTop + chartHeight - int((0-minYoY)/(maxYoY-minYoY)*float64(chartHeight))
+	if minYoY < 0 && maxYoY > 0 {
+		drawDashedLine(img, chartLeft, zeroY, chartLeft+chartWidth, zeroY, color.RGBA{128, 128, 128, 255})
+	}
+
+	// 圖例
+	if config.ShowLegend {
+		legendY := config.Height - 80
+		// 營收圖例
+		drawRect(img, chartLeft, legendY, 15, 15, barColor)
+		pt := freetype.Pt(chartLeft+25, legendY+12)
+		c.DrawString("營收", pt)
+
+		// 年增率圖例
+		drawCircle(img, chartLeft+100, legendY+7, 5, lineColor)                             // 增大圓點
+		drawThickLine(img, chartLeft+85, legendY+7, chartLeft+115, legendY+7, 3, lineColor) // 使用粗線
+		pt = freetype.Pt(chartLeft+125, legendY+12)
+		c.DrawString("YoY", pt)
+	}
+
+	// 軸標籤
+	ptX := freetype.Pt(chartLeft+chartWidth/2-20, config.Height-30)
+	c.DrawString("時間", ptX)
+
+	// 左側Y軸標籤
+	pt1 := freetype.Pt(30, chartTop+chartHeight/2)
+	c.DrawString("營收 (億)", pt1)
+
+	// 右側Y軸標籤
+	pt2 := freetype.Pt(chartLeft+chartWidth+50, chartTop+chartHeight/2)
+	c.DrawString("YoY (%)", pt2)
+
+	// 將圖片編碼為 PNG
+	var buf bytes.Buffer
+	err = png.Encode(&buf, img)
+	if err != nil {
+		return nil, fmt.Errorf("編碼 PNG 失敗: %v", err)
+	}
+
+	return buf.Bytes(), nil
 }

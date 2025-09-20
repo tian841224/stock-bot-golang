@@ -1,4 +1,4 @@
-package twstock
+package dto
 
 type StockPerformanceResponseDto struct {
 	Data      []StockPerformanceData `json:"data"`

@@ -1,4 +1,4 @@
-package twstock
+package dto
 
 type StockPriceInfo struct {
 	StockID          string  `json:"stock_id"`

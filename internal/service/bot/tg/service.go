@@ -2,14 +2,12 @@ package tg
 
 import (
 	"fmt"
-	"strings"
-	"time"
-
 	"stock-bot/internal/repository"
-	cnyesDto "stock-bot/internal/service/cnyes/dto"
 	"stock-bot/internal/service/twstock"
 	stockDto "stock-bot/internal/service/twstock/dto"
 	"stock-bot/pkg/logger"
+	"strings"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -104,26 +102,6 @@ func (s *TgService) GetStockPerformanceWithChart(symbol string, chartType string
 	return performanceChartData.ChartData, formattedText, nil
 }
 
-// GetStockNews 取得股票新聞
-func (s *TgService) GetStockNews(symbol string) (string, error) {
-	// 驗證股票代號
-	valid, stockName, err := s.stockService.ValidateStockID(symbol)
-	if err != nil || !valid {
-		return "", fmt.Errorf("查無此股票代號，請重新確認")
-	}
-
-	// 這裡需要實際的新聞服務，暫時返回模擬資料
-	message := fmt.Sprintf("⚡️%s(%s)-即時新聞\n\n暫無新聞資料，功能開發中...", stockName, symbol)
-	return message, nil
-}
-
-// GetYahooStockNews 取得 Yahoo 股票新聞
-func (s *TgService) GetYahooStockNews(symbol string) (string, error) {
-	// 這裡需要實際的 Yahoo 新聞服務，暫時返回模擬資料
-	message := fmt.Sprintf("⚡️%s-即時新聞\n\n暫無新聞資料，功能開發中...", symbol)
-	return message, nil
-}
-
 // GetTopVolumeItemsFormatted 取得格式化的交易量前20名
 func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
 	topItems, err := s.stockService.GetTopVolumeItems()
@@ -207,6 +185,7 @@ func (s *TgService) GetStockPriceByDate(symbol, date string) (string, error) {
 	return message, nil
 }
 
+// GetStockInfo 取得股票詳細資訊
 func (s *TgService) GetStockInfo(symbol string) (string, error) {
 	stockInfo, err := s.stockService.GetStockInfo(symbol)
 	if err != nil {
@@ -216,6 +195,24 @@ func (s *TgService) GetStockInfo(symbol string) (string, error) {
 
 	message := s.formatStockInfoMessage(stockInfo)
 	return message, nil
+}
+
+// GetStockRevenue 取得股票財報和圖表
+func (s *TgService) GetStockRevenueWithChart(symbol string) ([]byte, string, error) {
+	revenue, err := s.stockService.GetStockRevenue(symbol)
+	if err != nil {
+		logger.Log.Error("取得股票財報失敗", zap.Error(err))
+		return nil, "", fmt.Errorf("查無資料，請確認後再試")
+	}
+
+	chart, err := s.stockService.GetStockRevenueChart(symbol)
+	if err != nil {
+		logger.Log.Error("取得股票財報圖表失敗", zap.Error(err))
+		return nil, "", fmt.Errorf("查無資料，請確認後再試")
+	}
+
+	message := s.formatRevenueMessage(revenue)
+	return chart, message, nil
 }
 
 // AddUserStockSubscription 新增使用者股票訂閱
@@ -303,55 +300,120 @@ func (s *TgService) GetUserSubscriptionList(userID uint) (string, error) {
 	return messageText, nil
 }
 
-// convertTimeRange 轉換時間範圍顯示文字
-func (s *TgService) convertTimeRange(timeRange string) string {
-	switch timeRange {
-	case "h":
-		return "分時"
-	case "d":
-		return "日K"
-	case "w":
-		return "週K"
-	case "m":
-		return "月K"
-	case "5m":
-		return "5分"
-	case "15m":
-		return "15分"
-	case "30m":
-		return "30分"
-	case "60m":
-		return "60分"
-	default:
-		return "日K" // 預設值
+// GetStockNews 取得股票新聞
+func (s *TgService) GetStockNews(symbol string) (string, error) {
+	// 驗證股票代號
+	valid, stockName, err := s.stockService.ValidateStockID(symbol)
+	if err != nil || !valid {
+		return "", fmt.Errorf("查無此股票代號，請重新確認")
 	}
+
+	// 這裡需要實際的新聞服務，暫時返回模擬資料
+	message := fmt.Sprintf("⚡️%s(%s)-即時新聞\n\n暫無新聞資料，功能開發中...", stockName, symbol)
+	return message, nil
+}
+
+// GetYahooStockNews 取得 Yahoo 股票新聞
+func (s *TgService) GetYahooStockNews(symbol string) (string, error) {
+	// 這裡需要實際的 Yahoo 新聞服務，暫時返回模擬資料
+	message := fmt.Sprintf("⚡️%s-即時新聞\n\n暫無新聞資料，功能開發中...", symbol)
+	return message, nil
 }
 
 // GetDailyMarketInfo 取得大盤資訊
-func (s *TgService) GetDailyMarketInfo(count int) (string, error) {
-	marketInfoList, err := s.stockService.GetDailyMarketInfo(count)
-	if err != nil {
-		logger.Log.Error("取得大盤資訊失敗", zap.Error(err))
-		return "", fmt.Errorf("查無資料，請確認後再試")
+// func (s *TgService) GetDailyMarketInfo(count int) (string, error) {
+// 	marketInfoList, err := s.stockService.GetDailyMarketInfo(count)
+// 	if err != nil {
+// 		logger.Log.Error("取得大盤資訊失敗", zap.Error(err))
+// 		return "", fmt.Errorf("查無資料，請確認後再試")
+// 	}
+
+// 	if len(marketInfoList) == 0 {
+// 		return "", fmt.Errorf("查無資料，請確認後再試")
+// 	}
+
+// 	messageText := "<b>台灣股市大盤資訊</b>\n\n"
+// 	for _, row := range marketInfoList {
+// 		messageText += fmt.Sprintf("<b>%s</b>\n", row.Date)
+// 		messageText += "<code>"
+// 		messageText += fmt.Sprintf("成交股數：%s\n", row.Volume)
+// 		messageText += fmt.Sprintf("成交金額：%s\n", row.Amount)
+// 		messageText += fmt.Sprintf("成交筆數：%s\n", row.Transaction)
+// 		messageText += fmt.Sprintf("發行量加權股價指數：%s\n", row.Index)
+// 		messageText += fmt.Sprintf("漲跌點數：%s\n", row.Change)
+// 		messageText += "</code>\n"
+// 	}
+
+// 	return messageText, nil
+// }
+
+// formatRevenueMessage 格式化股票財報訊息
+func (s *TgService) formatRevenueMessage(revenue *stockDto.RevenueDto) string {
+	var message strings.Builder
+
+	message.WriteString(fmt.Sprintf("<b>📊 %s(%s) 月營收</b>\n\n", revenue.Name, revenue.Code))
+
+	// 檢查是否有資料
+	if len(revenue.SaleMonth) == 0 || len(revenue.YoY) == 0 {
+		message.WriteString("❌ 暫無營收資料")
+		return message.String()
 	}
 
-	if len(marketInfoList) == 0 {
-		return "", fmt.Errorf("查無資料，請確認後再試")
+	message.WriteString("<pre>")
+	message.WriteString("月份     營收(千元)    年增率  累計營收(千元)  累計年增率\n")
+	message.WriteString("─────────────────────────────────────────────────\n")
+
+	// 顯示所有資料
+	for i := 0; i < len(revenue.Time); i++ {
+		timeStr := s.formatTimeFromTimestamp(revenue.Time[i])
+
+		// 營收(千元)
+		monthRevenue := revenue.SaleMonth[i]
+
+		// 年增率
+		yoy := revenue.YoY[i]
+
+		// 累計營收(千元)
+		accumulatedRevenue := revenue.SaleAccumulated[i]
+
+		// 累計年增率
+		accumulatedYoY := revenue.YoYAccumulated[i]
+
+		// 格式化輸出，對齊顯示
+		message.WriteString(fmt.Sprintf("%-8s %10s %8.1f%% %12s %10.1f%%\n",
+			timeStr,
+			s.formatNumber(monthRevenue),
+			yoy,
+			s.formatNumber(accumulatedRevenue),
+			accumulatedYoY))
+	}
+	message.WriteString("</pre>")
+
+	return message.String()
+}
+
+// formatTimeFromTimestamp 將時間戳記格式化為 YYYY/MM 格式
+func (s *TgService) formatTimeFromTimestamp(timestamp int64) string {
+	t := time.Unix(timestamp, 0)
+	return t.Format("2006/01")
+}
+
+// formatNumber 格式化數字，加上千分位分隔符
+func (s *TgService) formatNumber(num int64) string {
+	str := fmt.Sprintf("%d", num)
+	n := len(str)
+	if n <= 3 {
+		return str
 	}
 
-	messageText := "<b>台灣股市大盤資訊</b>\n\n"
-	for _, row := range marketInfoList {
-		messageText += fmt.Sprintf("<b>%s</b>\n", row.Date)
-		messageText += "<code>"
-		messageText += fmt.Sprintf("成交股數：%s\n", row.Volume)
-		messageText += fmt.Sprintf("成交金額：%s\n", row.Amount)
-		messageText += fmt.Sprintf("成交筆數：%s\n", row.Transaction)
-		messageText += fmt.Sprintf("發行量加權股價指數：%s\n", row.Index)
-		messageText += fmt.Sprintf("漲跌點數：%s\n", row.Change)
-		messageText += "</code>\n"
+	result := ""
+	for i, char := range str {
+		if i > 0 && (n-i)%3 == 0 {
+			result += ","
+		}
+		result += string(char)
 	}
-
-	return messageText, nil
+	return result
 }
 
 // formatPerformanceTable 格式化股票績效為HTML表格
@@ -379,7 +441,7 @@ func (s *TgService) formatPerformanceTable(stockName, symbol string, performance
 }
 
 // formatStockInfoMessage 格式化股票詳細資訊訊息
-func (s *TgService) formatStockInfoMessage(stockInfo *cnyesDto.StockQuoteInfo) string {
+func (s *TgService) formatStockInfoMessage(stockInfo *stockDto.StockQuoteInfo) string {
 	var message strings.Builder
 
 	message.WriteString("<pre>")
@@ -456,4 +518,28 @@ func (s *TgService) formatStockInfoMessage(stockInfo *cnyesDto.StockQuoteInfo) s
 	message.WriteString(fmt.Sprintf("%.2f%%", stockInfo.NetMargin))
 	message.WriteString("</pre>")
 	return message.String()
+}
+
+// convertTimeRange 轉換時間範圍顯示文字
+func (s *TgService) convertTimeRange(timeRange string) string {
+	switch timeRange {
+	case "h":
+		return "分時"
+	case "d":
+		return "日K"
+	case "w":
+		return "週K"
+	case "m":
+		return "月K"
+	case "5m":
+		return "5分"
+	case "15m":
+		return "15分"
+	case "30m":
+		return "30分"
+	case "60m":
+		return "60分"
+	default:
+		return "日K" // 預設值
+	}
 }

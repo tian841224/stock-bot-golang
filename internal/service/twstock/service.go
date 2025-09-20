@@ -13,7 +13,6 @@ import (
 	"stock-bot/internal/infrastructure/twse"
 	twseDto "stock-bot/internal/infrastructure/twse/dto"
 	"stock-bot/internal/repository"
-	cnyesDto "stock-bot/internal/service/cnyes/dto"
 	stockDto "stock-bot/internal/service/twstock/dto"
 
 	"stock-bot/pkg/imageutil"
@@ -44,25 +43,6 @@ func NewStockService(
 		cnyesAPI:      cnyesAPI,
 		symbolsRepo:   symbolsRepo,
 	}
-}
-
-// ========== 資料結構定義 ==========
-
-// MarketInfo 市場資訊
-type MarketInfo struct {
-	Date        string `json:"date"`
-	Volume      string `json:"volume"`
-	Amount      string `json:"amount"`
-	Transaction string `json:"transaction"`
-	Index       string `json:"index"`
-	Change      string `json:"change"`
-}
-
-// NewsInfo 新聞資訊
-type NewsInfo struct {
-	Title string `json:"title"`
-	Link  string `json:"link"`
-	Date  string `json:"date"`
 }
 
 // ========== Finmindtrade相關方法 ==========
@@ -318,47 +298,47 @@ func (s *StockService) GetStockPerformanceWithChart(stockID string, chartType st
 }
 
 // GetDailyMarketInfo 取得大盤資訊
-func (s *StockService) GetDailyMarketInfo(count int) ([]*MarketInfo, error) {
-	logger.Log.Info("取得大盤資訊", zap.Int("count", count))
+// func (s *StockService) GetDailyMarketInfo(count int) ( error) {
+// 	logger.Log.Info("取得大盤資訊", zap.Int("count", count))
 
-	// 呼叫 TWSE API
-	response, err := s.twseAPI.GetDailyMarketInfo()
-	if err != nil {
-		logger.Log.Error("呼叫 TWSE API 失敗", zap.Error(err))
-		return nil, err
-	}
+// 	// 呼叫 TWSE API
+// 	response, err := s.twseAPI.GetDailyMarketInfo()
+// 	if err != nil {
+// 		logger.Log.Error("呼叫 TWSE API 失敗", zap.Error(err))
+// 		return nil, err
+// 	}
 
-	if len(response.Data) == 0 {
-		return nil, fmt.Errorf("查無市場資料")
-	}
+// 	if len(response.Data) == 0 {
+// 		return nil, fmt.Errorf("查無市場資料")
+// 	}
 
-	// 取得指定數量的資料
-	var result []*MarketInfo
-	dataLen := len(response.Data)
-	startIdx := 0
-	if count < dataLen {
-		startIdx = dataLen - count
-	}
+// 	// 取得指定數量的資料
+// 	var result []*MarketInfo
+// 	dataLen := len(response.Data)
+// 	startIdx := 0
+// 	if count < dataLen {
+// 		startIdx = dataLen - count
+// 	}
 
-	for i := startIdx; i < dataLen; i++ {
-		data := response.Data[i]
-		if len(data) < 6 {
-			continue
-		}
+// 	for i := startIdx; i < dataLen; i++ {
+// 		data := response.Data[i]
+// 		if len(data) < 6 {
+// 			continue
+// 		}
 
-		marketInfo := &MarketInfo{
-			Date:        fmt.Sprintf("%v", data[0]),
-			Volume:      fmt.Sprintf("%v", data[1]),
-			Amount:      fmt.Sprintf("%v", data[2]),
-			Transaction: fmt.Sprintf("%v", data[3]),
-			Index:       fmt.Sprintf("%v", data[4]),
-			Change:      fmt.Sprintf("%v", data[5]),
-		}
-		result = append(result, marketInfo)
-	}
+// 		marketInfo := &MarketInfo{
+// 			Date:        fmt.Sprintf("%v", data[0]),
+// 			Volume:      fmt.Sprintf("%v", data[1]),
+// 			Amount:      fmt.Sprintf("%v", data[2]),
+// 			Transaction: fmt.Sprintf("%v", data[3]),
+// 			Index:       fmt.Sprintf("%v", data[4]),
+// 			Change:      fmt.Sprintf("%v", data[5]),
+// 		}
+// 		result = append(result, marketInfo)
+// 	}
 
-	return result, nil
-}
+// 	return result, nil
+// }
 
 // GetTopVolumeItems 取得交易量前20名
 func (s *StockService) GetTopVolumeItems() ([]*stockDto.StockPriceInfo, error) {
@@ -434,117 +414,6 @@ func (s *StockService) GetTopVolumeItems() ([]*stockDto.StockPriceInfo, error) {
 	}
 
 	return result, nil
-}
-
-// GetAfterTradingVolume 取得盤後資訊
-func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.AfterTradingVolumeResponseDto, error) {
-	if strings.TrimSpace(symbol) == "" {
-		return nil, fmt.Errorf("symbol 為必填參數")
-	}
-
-	response, err := s.twseAPI.GetAfterTradingVolume(symbol, date)
-	if err != nil {
-		return nil, err
-	}
-
-	// 檢查資料結構
-	if len(response.Tables) <= 8 {
-		return nil, fmt.Errorf("查無資料或資料表結構異常")
-	}
-
-	stockList := response.Tables[8]
-	if len(stockList.Data) == 0 {
-		return nil, fmt.Errorf("查無資料")
-	}
-
-	// 第 9 個 table 為個股清單，篩選指定股票
-	for _, row := range stockList.Data {
-		if len(row) < 13 {
-			continue
-		}
-		if strings.TrimSpace(utils.ToString(row[0])) != strings.TrimSpace(symbol) {
-			continue
-		}
-
-		openPrice := utils.ToFloat(row[5])
-		changeAmount := utils.ToFloat(row[10])
-		percentage := utils.PercentageChange(changeAmount, openPrice)
-
-		result := &twseDto.AfterTradingVolumeResponseDto{
-			StockId:          utils.ToString(row[0]),
-			StockName:        utils.ToString(row[1]),
-			Volume:           utils.ToString(row[2]),
-			Transaction:      utils.ToString(row[3]),
-			Amount:           utils.ToString(row[4]),
-			OpenPrice:        openPrice,
-			ClosePrice:       utils.ToFloat(row[8]),
-			HighPrice:        utils.ToFloat(row[6]),
-			LowPrice:         utils.ToFloat(row[7]),
-			UpDownSign:       utils.ExtractUpDownSign(utils.ToString(row[9])),
-			ChangeAmount:     changeAmount,
-			PercentageChange: percentage,
-		}
-		return result, nil
-	}
-
-	return nil, fmt.Errorf("找不到指定股票: %s", symbol)
-}
-
-// ========== 股票分析相關方法 ==========
-
-// GetStockAnalysis 取得股票分析圖表
-func (s *StockService) GetStockAnalysis(stockID string) ([]byte, string, error) {
-	logger.Log.Info("取得股票分析", zap.String("stockID", stockID))
-
-	requestDto := dto.FinmindtradeRequestDto{
-		StockID: stockID,
-	}
-
-	// 呼叫 FinMind API
-	response, err := s.finmindClient.GetTaiwanStockAnalysisPlot(requestDto)
-	if err != nil {
-		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
-		return nil, "", err
-	}
-
-	if response.Status != 200 {
-		return nil, "", fmt.Errorf("API 回應錯誤: %s", response.Msg)
-	}
-
-	// 取得股票名稱
-	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(stockID, "TW")
-	stockName := stockID
-	if err == nil && symbol != nil {
-		stockName = symbol.Name
-	}
-
-	// 由於 FinMind API 的分析圖表回應不包含圖片數據，暫時返回空數據
-	// 實際使用時需要根據 API 文檔調整
-	return []byte{}, stockName, nil
-}
-
-// GetStockInfo 取得股票詳細資訊
-func (s *StockService) GetStockInfo(stockID string) (*cnyesDto.StockQuoteInfo, error) {
-	logger.Log.Info("取得股票詳細資訊", zap.String("stockID", stockID))
-
-	response, err := s.cnyesAPI.GetStockQuote(stockID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 檢查回應狀態
-	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("API回應錯誤: %s", response.Message)
-	}
-
-	// 檢查是否有資料
-	if len(response.Data) == 0 {
-		return nil, fmt.Errorf("查無股票資料: %s", stockID)
-	}
-
-	// 格式化資料（取第一筆）
-	stockInfo := s.FormatStockQuote(response.Data[0])
-	return stockInfo, nil
 }
 
 // GetStockPriceHistory 取得股票每日價格歷史（近1年）
@@ -660,8 +529,238 @@ func (s *StockService) GetStockPriceHistory(stockID string) ([]stockDto.StockPer
 	return performancePeriods, nil
 }
 
-func (s *StockService) FormatStockQuote(data cnyesInfraDto.CnyesStockQuoteDataDto) *cnyesDto.StockQuoteInfo {
-	return &cnyesDto.StockQuoteInfo{
+// GetAfterTradingVolume 取得盤後資訊
+func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.AfterTradingVolumeResponseDto, error) {
+	if strings.TrimSpace(symbol) == "" {
+		return nil, fmt.Errorf("symbol 為必填參數")
+	}
+
+	response, err := s.twseAPI.GetAfterTradingVolume(symbol, date)
+	if err != nil {
+		return nil, err
+	}
+
+	// 檢查資料結構
+	if len(response.Tables) <= 8 {
+		return nil, fmt.Errorf("查無資料或資料表結構異常")
+	}
+
+	stockList := response.Tables[8]
+	if len(stockList.Data) == 0 {
+		return nil, fmt.Errorf("查無資料")
+	}
+
+	// 第 9 個 table 為個股清單，篩選指定股票
+	for _, row := range stockList.Data {
+		if len(row) < 13 {
+			continue
+		}
+		if strings.TrimSpace(utils.ToString(row[0])) != strings.TrimSpace(symbol) {
+			continue
+		}
+
+		openPrice := utils.ToFloat(row[5])
+		changeAmount := utils.ToFloat(row[10])
+		percentage := utils.PercentageChange(changeAmount, openPrice)
+
+		result := &twseDto.AfterTradingVolumeResponseDto{
+			StockId:          utils.ToString(row[0]),
+			StockName:        utils.ToString(row[1]),
+			Volume:           utils.ToString(row[2]),
+			Transaction:      utils.ToString(row[3]),
+			Amount:           utils.ToString(row[4]),
+			OpenPrice:        openPrice,
+			ClosePrice:       utils.ToFloat(row[8]),
+			HighPrice:        utils.ToFloat(row[6]),
+			LowPrice:         utils.ToFloat(row[7]),
+			UpDownSign:       utils.ExtractUpDownSign(utils.ToString(row[9])),
+			ChangeAmount:     changeAmount,
+			PercentageChange: percentage,
+		}
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("找不到指定股票: %s", symbol)
+}
+
+// GetStockAnalysis 取得股票分析圖表
+func (s *StockService) GetStockAnalysis(stockID string) ([]byte, string, error) {
+	logger.Log.Info("取得股票分析", zap.String("stockID", stockID))
+
+	requestDto := dto.FinmindtradeRequestDto{
+		StockID: stockID,
+	}
+
+	// 呼叫 FinMind API
+	response, err := s.finmindClient.GetTaiwanStockAnalysisPlot(requestDto)
+	if err != nil {
+		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
+		return nil, "", err
+	}
+
+	if response.Status != 200 {
+		return nil, "", fmt.Errorf("API 回應錯誤: %s", response.Msg)
+	}
+
+	// 取得股票名稱
+	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(stockID, "TW")
+	stockName := stockID
+	if err == nil && symbol != nil {
+		stockName = symbol.Name
+	}
+
+	// 由於 FinMind API 的分析圖表回應不包含圖片數據，暫時返回空數據
+	// 實際使用時需要根據 API 文檔調整
+	return []byte{}, stockName, nil
+}
+
+// ========== Cnyes相關方法 ==========
+
+// GetStockInfo 取得股票詳細資訊
+func (s *StockService) GetStockInfo(stockID string) (*stockDto.StockQuoteInfo, error) {
+	logger.Log.Info("取得股票詳細資訊", zap.String("stockID", stockID))
+
+	response, err := s.cnyesAPI.GetStockQuote(stockID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 檢查回應狀態
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("API回應錯誤: %s", response.Message)
+	}
+
+	// 檢查是否有資料
+	if len(response.Data) == 0 {
+		return nil, fmt.Errorf("查無股票資料: %s", stockID)
+	}
+
+	// 格式化資料（取第一筆）
+	stockInfo := s.formatStockInfo(response.Data[0])
+	return stockInfo, nil
+}
+
+// GetStockQuote 取得股票報價資訊
+func (s *StockService) GetStockQuote(stockID string) (*stockDto.StockQuoteInfo, error) {
+	// 建構股票符號 (格式: TWS:2330:STOCK)
+	symbol := fmt.Sprintf("TWS:%s:STOCK", stockID)
+
+	// 呼叫API
+	response, err := s.cnyesAPI.GetStockQuote(symbol)
+	if err != nil {
+		return nil, fmt.Errorf("取得股票報價失敗: %v", err)
+	}
+
+	// 檢查回應
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("API回應錯誤: %s", response.Message)
+	}
+
+	if len(response.Data) == 0 {
+		return nil, fmt.Errorf("查無股票資料: %s", stockID)
+	}
+
+	// 格式化資料（取第一筆）
+	stockInfo := s.formatStockQuote(response.Data[0])
+	return stockInfo, nil
+}
+
+// GetStockRevenue 取得股票財報
+func (s *StockService) GetStockRevenue(stockID string) (*stockDto.RevenueDto, error) {
+	logger.Log.Info("取得股票財報", zap.String("stockID", stockID))
+
+	// 取得近12個月財報
+	response, err := s.cnyesAPI.GetRevenue(stockID, 12)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("API回應錯誤: %s", response.Message)
+	}
+
+	return s.formatRevenue(response.Data), nil
+}
+
+// GetStockRevenueChart 取得股票營收圖表
+func (s *StockService) GetStockRevenueChart(stockID string) ([]byte, error) {
+	logger.Log.Info("產生股票營收圖表", zap.String("stockID", stockID))
+
+	// 取得營收資料
+	revenueData, err := s.GetStockRevenue(stockID)
+	if err != nil {
+		return nil, fmt.Errorf("取得營收資料失敗: %v", err)
+	}
+
+	// 轉換為圖表資料格式
+	chartData := s.convertToChartData(revenueData)
+
+	// 產生圖表
+	chartBytes, err := imageutil.GenerateRevenueChartPNG(chartData, revenueData.Name)
+	if err != nil {
+		return nil, fmt.Errorf("產生營收圖表失敗: %v", err)
+	}
+
+	return chartBytes, nil
+}
+
+// convertToChartData 轉換營收資料為圖表格式
+func (s *StockService) convertToChartData(revenueData *stockDto.RevenueDto) []imageutil.RevenueChartData {
+	if revenueData == nil || len(revenueData.Time) == 0 {
+		return []imageutil.RevenueChartData{}
+	}
+
+	chartData := make([]imageutil.RevenueChartData, len(revenueData.Time))
+
+	// 取得最新的營收和年增率
+	latestRevenue := int64(0)
+	latestYoY := 0.0
+	if len(revenueData.SaleMonth) > 0 {
+		latestRevenue = revenueData.SaleMonth[len(revenueData.SaleMonth)-1]
+	}
+	if len(revenueData.YoY) > 0 {
+		latestYoY = revenueData.YoY[len(revenueData.YoY)-1]
+	}
+
+	for i, timestamp := range revenueData.Time {
+		// 轉換時間戳記為日期格式
+		t := time.Unix(timestamp, 0)
+		period := t.Format("2006/01")
+		periodName := t.Format("2006/01")
+
+		// 取得對應的資料
+		revenue := int64(0)
+		yoy := 0.0
+		stockPrice := 0.0
+
+		if i < len(revenueData.SaleMonth) {
+			revenue = revenueData.SaleMonth[i]
+		}
+		if i < len(revenueData.YoY) {
+			yoy = revenueData.YoY[i]
+		}
+		if i < len(revenueData.StockPrice) {
+			stockPrice = revenueData.StockPrice[i]
+		}
+
+		chartData[i] = imageutil.RevenueChartData{
+			Period:        period,
+			PeriodName:    periodName,
+			Revenue:       revenue,
+			YoY:           yoy,
+			StockPrice:    stockPrice,
+			LatestRevenue: latestRevenue,
+			LatestYoY:     latestYoY,
+		}
+	}
+
+	return chartData
+}
+
+// ========== 轉換格式相關方法 ==========
+
+func (s *StockService) formatStockInfo(data cnyesInfraDto.CnyesStockQuoteDataDto) *stockDto.StockQuoteInfo {
+	return &stockDto.StockQuoteInfo{
 		StockID:      data.StockID,
 		StockName:    data.StockName,
 		Industry:     data.Industry,
@@ -700,6 +799,81 @@ func (s *StockService) FormatStockQuote(data cnyesInfraDto.CnyesStockQuoteDataDt
 		InVolume:     int64(data.InVolume),
 		OutRatio:     data.OutRatio,
 		InRatio:      data.InRatio,
+	}
+}
+
+// formatRevenue 格式化財報資料
+func (s *StockService) formatRevenue(data cnyesInfraDto.CnyesRevenueDataDto) *stockDto.RevenueDto {
+	return &stockDto.RevenueDto{
+		Time:            data.Time,
+		Code:            data.Code,
+		Name:            data.Name,
+		StockPrice:      data.Datasets.C,
+		SaleMonth:       data.Datasets.SaleMonth,
+		SaleAccumulated: data.Datasets.SaleAccumulated,
+		YoY:             data.Datasets.YoY,
+		YoYAccumulated:  data.Datasets.YoYAccumulated,
+	}
+}
+
+// formatStockQuote 格式化股票報價資料
+func (s *StockService) formatStockQuote(data cnyesInfraDto.CnyesStockQuoteDataDto) *stockDto.StockQuoteInfo {
+	return &stockDto.StockQuoteInfo{
+		// 基本資訊
+		StockID:   data.StockID,
+		StockName: data.StockName,
+		Industry:  data.Industry,
+		Market:    data.Market,
+
+		// 價格資訊
+		CurrentPrice: data.CurrentPrice,
+		Change:       data.Change,
+		ChangeRate:   data.ChangeRate,
+		OpenPrice:    data.OpenPrice,
+		HighPrice:    data.HighPrice,
+		LowPrice:     data.LowPrice,
+		PrevClose:    data.PrevClose,
+
+		// 成交量資訊 (轉換單位)
+		Volume:      int64(data.Volume),
+		Turnover:    data.Turnover / 1e8,    // 轉換為億元
+		VolumeRatio: data.VolumeRatio * 100, // 轉換為百分比
+		Amplitude:   data.Amplitude,
+
+		// 財務指標
+		PE:           data.PE,
+		PB:           data.PB,
+		MarketCap:    data.MarketCap / 1e12, // 轉換為兆元
+		BookValue:    data.BookValue,
+		EPS:          data.EPS,
+		QuarterEPS:   data.QuarterEPS,
+		Dividend:     data.Dividend,
+		DividendRate: data.DividendRate,
+		GrossMargin:  data.GrossMargin,
+		OperMargin:   data.OperMargin,
+		NetMargin:    data.NetMargin,
+
+		// 價位區間
+		UpperLimit:  data.UpperLimit,
+		LowerLimit:  data.LowerLimit,
+		High52W:     data.High52W,
+		Low52W:      data.Low52W,
+		High52WDate: data.High52WDate,
+		Low52WDate:  data.Low52WDate,
+
+		// 五檔資訊
+		BidPrices: []float64{
+			data.BidPrice1, data.BidPrice2, data.BidPrice3, data.BidPrice4, data.BidPrice5,
+		},
+		AskPrices: []float64{
+			data.AskPrice1, data.AskPrice2, data.AskPrice3, data.AskPrice4, data.AskPrice5,
+		},
+
+		// 內外盤資訊
+		OutVolume: int64(data.OutVolume),
+		InVolume:  int64(data.InVolume),
+		OutRatio:  data.OutRatio,
+		InRatio:   data.InRatio,
 	}
 }
 

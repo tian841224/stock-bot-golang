@@ -214,17 +214,17 @@ func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date str
 // 	return c.sendMessage(userID, message)
 // }
 
-// CommandDailyMarketInfo 處理 /m 命令 - 大盤資訊
-func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error {
-	// 呼叫業務邏輯
-	messageText, err := c.tgService.GetDailyMarketInfo(count)
-	if err != nil {
-		return c.sendMessage(userID, err.Error())
-	}
+// // CommandDailyMarketInfo 處理 /m 命令 - 大盤資訊
+// func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error {
+// 	// 呼叫業務邏輯
+// 	messageText, err := c.tgService.GetDailyMarketInfo(count)
+// 	if err != nil {
+// 		return c.sendMessage(userID, err.Error())
+// 	}
 
-	// 發送回應
-	return c.sendMessageHTML(userID, messageText)
-}
+// 	// 發送回應
+// 	return c.sendMessageHTML(userID, messageText)
+// }
 
 // CommandTopVolumeItems 處理 /t 命令 - 交易量前20名
 func (c *TgCommandHandler) CommandTopVolumeItems(userID int64) error {
@@ -250,6 +250,28 @@ func (c *TgCommandHandler) CommandStockInfo(userID int64, symbol, date string) e
 	}
 
 	return c.sendMessageHTML(userID, message)
+}
+
+// CommandRevenue 處理 /r 命令 - 股票財報
+func (c *TgCommandHandler) CommandRevenue(userID int64, symbol string) error {
+	if symbol == "" {
+		return c.sendMessage(userID, "請輸入股票代號")
+	}
+
+	chartData, caption, err := c.tgService.GetStockRevenueWithChart(symbol)
+
+	if err != nil {
+		return c.sendMessage(userID, err.Error())
+	}
+
+	// 檢查是否有圖表資料
+	if len(chartData) == 0 {
+		// 如果沒有圖表資料，發送文字版本
+		return c.sendMessageHTML(userID, caption)
+	}
+
+	// 發送圖表
+	return c.sendPhoto(userID, chartData, caption)
 }
 
 // CommandSubscribe 處理 /sub 命令 - 訂閱功能

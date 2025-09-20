@@ -29,19 +29,21 @@ func NewCnyesAPI() *CnyesAPI {
 
 // GetStockQuote 取得股票報價資訊
 func (c *CnyesAPI) GetStockQuote(symbol string) (dto.CnyesStockQuoteResponseDto, error) {
-	var response dto.CnyesStockQuoteResponseDto
-
-	// 建構完整的URL
 	url := fmt.Sprintf("https://ws.api.cnyes.com/ws/api/v1/quote/quotes/TWS:%s:STOCK?column=K,E,KEY,M,AI", symbol)
+	return getResponse[dto.CnyesStockQuoteResponseDto](c, url)
+}
 
-	// 建立請求
+// GetRevenue 取得財報
+func (c *CnyesAPI) GetRevenue(symbol string, months int) (response dto.CnyesRevenueResponseDto, err error) {
+	url := fmt.Sprintf("https://marketinfo.api.cnyes.com/mi/api/v1/TWS:%s:STOCK/revenue?months=%d", symbol, months)
+	return getResponse[dto.CnyesRevenueResponseDto](c, url)
+}
+
+func getResponse[T any](c *CnyesAPI, url string) (response T, err error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return response, fmt.Errorf("建立請求失敗: %v", err)
+		return response, err
 	}
-
-	// 設定標頭
-	req.Header.Set("Accept", "application/json")
 
 	// 發送請求
 	resp, err := c.client.Do(req)

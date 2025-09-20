@@ -2,20 +2,20 @@ package cnyes
 
 import (
 	"net/http"
-	cnyesService "stock-bot/internal/service/cnyes"
+	"stock-bot/internal/service/twstock"
 
 	"github.com/gin-gonic/gin"
 )
 
 // CnyesHandler 鉅亨網API處理器
 type CnyesHandler struct {
-	cnyesService cnyesService.CnyesServiceInterface
+	twstockService *twstock.StockService
 }
 
 // NewCnyesHandler 建立新的鉅亨網處理器
-func NewCnyesHandler(cnyesService cnyesService.CnyesServiceInterface) *CnyesHandler {
+func NewCnyesHandler(twstockService *twstock.StockService) *CnyesHandler {
 	return &CnyesHandler{
-		cnyesService: cnyesService,
+		twstockService: twstockService,
 	}
 }
 
@@ -44,7 +44,7 @@ func (h *CnyesHandler) GetStockQuote(c *gin.Context) {
 	}
 
 	// 呼叫服務取得股票資訊
-	stockInfo, err := h.cnyesService.GetStockQuote(stockID)
+	stockInfo, err := h.twstockService.GetStockQuote(stockID)
 	if err != nil {
 		// 根據錯誤類型回傳不同的HTTP狀態碼
 		if err.Error() == "查無股票資料: "+stockID {
@@ -99,7 +99,7 @@ func (h *CnyesHandler) GetStockQuoteRaw(c *gin.Context) {
 	symbol := "TWS:" + stockID + ":STOCK"
 
 	// 透過服務取得格式化資料
-	stockInfo, err := h.cnyesService.GetStockQuote(stockID)
+	stockInfo, err := h.twstockService.GetStockQuote(stockID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":  "取得股票資訊失敗",
@@ -128,7 +128,7 @@ func (h *CnyesHandler) GetStockQuoteRaw(c *gin.Context) {
 // @Router /cnyes/health [get]
 func (h *CnyesHandler) GetHealthCheck(c *gin.Context) {
 	// 嘗試取得台積電的資料來測試API連線
-	_, err := h.cnyesService.GetStockQuote("2330")
+	_, err := h.twstockService.GetStockQuote("2330")
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "unhealthy",
@@ -144,4 +144,110 @@ func (h *CnyesHandler) GetHealthCheck(c *gin.Context) {
 		"service": "cnyes-api",
 		"message": "鉅亨網API服務正常",
 	})
+}
+
+// GetStockRevenue 取得股票營收資料
+// @Summary 取得股票營收資料
+// @Description 透過鉅亨網API取得指定股票的營收資料
+// @Tags 鉅亨網API
+// @Accept json
+// @Produce json
+// @Param stock_id path string true "股票代碼 (例如: 2330)"
+// @Success 200 {object} map[string]interface{} "成功取得股票營收資料"
+// @Failure 400 {object} map[string]interface{} "請求參數錯誤"
+// @Failure 404 {object} map[string]interface{} "查無股票資料"
+// @Failure 500 {object} map[string]interface{} "內部伺服器錯誤"
+// @Router /cnyes/stock/{stock_id}/revenue [get]
+func (h *CnyesHandler) GetStockRevenue(c *gin.Context) {
+	stockID := c.Param("stock_id")
+
+	// 檢查必要參數
+	if stockID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "股票代碼為必填參數",
+			"code":  "MISSING_STOCK_ID",
+		})
+		return
+	}
+
+	// 呼叫服務取得股票營收資料
+	revenueData, err := h.twstockService.GetStockRevenue(stockID)
+	if err != nil {
+		// 根據錯誤類型回傳不同的HTTP狀態碼
+		if err.Error() == "查無股票資料: "+stockID {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error":    "查無股票資料",
+				"code":     "STOCK_NOT_FOUND",
+				"stock_id": stockID,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "取得股票營收資料失敗",
+			"code":   "INTERNAL_ERROR",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	// 回傳成功結果
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    revenueData,
+		"message": "成功取得股票營收資料",
+	})
+}
+
+// GetStockRevenueChart 取得股票營收圖表
+// @Summary 取得股票營收圖表
+// @Description 產生指定股票的營收圖表（PNG格式）
+// @Tags 鉅亨網API
+// @Accept json
+// @Produce image/png
+// @Param stock_id path string true "股票代碼 (例如: 2330)"
+// @Success 200 {file} binary "營收圖表PNG檔案"
+// @Failure 400 {object} map[string]interface{} "請求參數錯誤"
+// @Failure 404 {object} map[string]interface{} "查無股票資料"
+// @Failure 500 {object} map[string]interface{} "內部伺服器錯誤"
+// @Router /cnyes/stock/{stock_id}/revenue/chart [get]
+func (h *CnyesHandler) GetStockRevenueChart(c *gin.Context) {
+	stockID := c.Param("stock_id")
+
+	// 檢查必要參數
+	if stockID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "股票代碼為必填參數",
+			"code":  "MISSING_STOCK_ID",
+		})
+		return
+	}
+
+	// 呼叫服務產生營收圖表
+	chartBytes, err := h.twstockService.GetStockRevenueChart(stockID)
+	if err != nil {
+		// 根據錯誤類型回傳不同的HTTP狀態碼
+		if err.Error() == "查無股票資料: "+stockID {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error":    "查無股票資料",
+				"code":     "STOCK_NOT_FOUND",
+				"stock_id": stockID,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "產生營收圖表失敗",
+			"code":   "INTERNAL_ERROR",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	// 設定回應標頭
+	c.Header("Content-Type", "image/png")
+	c.Header("Content-Disposition", "inline; filename=\"revenue_chart_"+stockID+".png\"")
+
+	// 回傳PNG圖片
+	c.Data(http.StatusOK, "image/png", chartBytes)
 }

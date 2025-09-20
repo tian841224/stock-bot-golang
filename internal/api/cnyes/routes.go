@@ -1,15 +1,15 @@
 package cnyes
 
 import (
-	cnyesService "stock-bot/internal/service/cnyes"
+	twstockService "stock-bot/internal/service/twstock"
 
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterRoutes 註冊鉅亨網API的路由
-func RegisterRoutes(r *gin.Engine, cnyesService cnyesService.CnyesServiceInterface) {
+func RegisterRoutes(r *gin.Engine, twstockService *twstockService.StockService) {
 	// 建立處理器
-	handler := NewCnyesHandler(cnyesService)
+	handler := NewCnyesHandler(twstockService)
 
 	// 建立路由群組
 	cnyesGroup := r.Group("/cnyes")
@@ -25,7 +25,12 @@ func RegisterRoutes(r *gin.Engine, cnyesService cnyesService.CnyesServiceInterfa
 
 			// 取得原始股票報價資料
 			stockGroup.GET("/:stock_id/raw", handler.GetStockQuoteRaw)
+
+			// 取得股票營收資料
+			stockGroup.GET("/:stock_id/revenue", handler.GetStockRevenue)
+
+			// 取得股票營收圖表
+			stockGroup.GET("/:stock_id/revenue/chart", handler.GetStockRevenueChart)
 		}
 	}
 }
-

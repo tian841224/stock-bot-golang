@@ -78,22 +78,25 @@ func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
 		return s.commandHandler.CommandPerformanceBarChart(userID, arg1)
 	case "/d":
 		return s.commandHandler.CommandTodayStockPrice(userID, arg1, arg2)
-	case "/n":
-		return s.commandHandler.sendMessage(userID, "新聞功能暫時停用")
-	case "/yn":
-		return s.commandHandler.sendMessage(userID, "Yahoo新聞功能暫時停用")
-	case "/m":
-		count := 1
-		if arg1 != "" {
-			if c, err := strconv.Atoi(arg1); err == nil {
-				count = c
-			}
-		}
-		return s.commandHandler.CommandDailyMarketInfo(userID, count)
 	case "/t":
 		return s.commandHandler.CommandTopVolumeItems(userID)
 	case "/i":
 		return s.commandHandler.CommandStockInfo(userID, arg1, arg2)
+	case "/r":
+		return s.commandHandler.CommandRevenue(userID, arg1)
+	// case "/n":
+	// 	return s.commandHandler.sendMessage(userID, "新聞功能暫時停用")
+	// case "/yn":
+	// 	return s.commandHandler.sendMessage(userID, "Yahoo新聞功能暫時停用")
+	// case "/m":
+	// 	count := 1
+	// 	if arg1 != "" {
+	// 		if c, err := strconv.Atoi(arg1); err == nil {
+	// 			count = c
+	// 		}
+	// 	}
+	// 	return s.commandHandler.CommandDailyMarketInfo(userID, count)
+
 	case "/sub":
 		return s.commandHandler.CommandSubscribe(userID, arg1)
 	case "/unsub":

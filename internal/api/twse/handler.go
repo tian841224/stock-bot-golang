@@ -2,8 +2,7 @@ package twse
 
 import (
 	twstockService "stock-bot/internal/service/twstock"
-	"strconv"
-
+ 
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,30 +14,30 @@ func NewTwseHandler(twstockService *twstockService.StockService) *TwseHandler {
 	return &TwseHandler{twstockService: twstockService}
 }
 
-func (h *TwseHandler) GetDailyMarketInfo(count *int, c *gin.Context) {
-	// 參數處理：如果 count 為 nil 或無效值，則使用預設值 1
-	actualCount := 1
-	if count != nil && *count > 0 {
-		actualCount = *count
-	}
+// func (h *TwseHandler) GetDailyMarketInfo(count *int, c *gin.Context) {
+// 	// 參數處理：如果 count 為 nil 或無效值，則使用預設值 1
+// 	actualCount := 1
+// 	if count != nil && *count > 0 {
+// 		actualCount = *count
+// 	}
 
-	// 也可以從查詢參數獲取 count
-	if countParam := c.Query("count"); countParam != "" {
-		if parsedCount, err := strconv.Atoi(countParam); err == nil && parsedCount > 0 {
-			actualCount = parsedCount
-		}
-	}
+// 	// 也可以從查詢參數獲取 count
+// 	if countParam := c.Query("count"); countParam != "" {
+// 		if parsedCount, err := strconv.Atoi(countParam); err == nil && parsedCount > 0 {
+// 			actualCount = parsedCount
+// 		}
+// 	}
 
-	dailyMarketData, err := h.twstockService.GetDailyMarketInfo(actualCount)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
+// 	dailyMarketData, err := h.twstockService.GetDailyMarketInfo(actualCount)
+// 	if err != nil {
+// 		c.JSON(500, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	c.JSON(200, gin.H{
-		"data": dailyMarketData,
-	})
-}
+// 	c.JSON(200, gin.H{
+// 		"data": dailyMarketData,
+// 	})
+// }
 
 // GetAfterTradingVolume 盤後資訊
 func (h *TwseHandler) GetAfterTradingVolume(c *gin.Context) {
