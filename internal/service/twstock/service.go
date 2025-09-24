@@ -624,13 +624,13 @@ func (s *StockService) GetStockHistoricalCandles(dto fugleDto.FugleCandlesReques
 }
 
 // GetStockHistoricalCandlesChart 取得股票歷史 K 線圖
-func (s *StockService) GetStockHistoricalCandlesChart(dto fugleDto.FugleCandlesRequestDto) ([]byte, error) {
+func (s *StockService) GetStockHistoricalCandlesChart(dto fugleDto.FugleCandlesRequestDto) ([]byte, string, error) {
 	response, err := s.fugleClient.GetStockHistoricalCandles(dto)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if len(response.Data) == 0 {
-		return nil, fmt.Errorf("查無K線資料")
+		return nil, "", fmt.Errorf("查無K線資料")
 	}
 
 	// 取得股票名稱
@@ -654,12 +654,12 @@ func (s *StockService) GetStockHistoricalCandlesChart(dto fugleDto.FugleCandlesR
 	}
 
 	// 產生圖表
-	chartBytes, err := imageutil.GenerateCandlestickChartPNG(chartData, stockName)
+	chartBytes, err := imageutil.GenerateCandlestickChartPNG(chartData, stockName, symbol.Symbol)
 	if err != nil {
-		return nil, fmt.Errorf("產生K線圖失敗: %v", err)
+		return nil, stockName, fmt.Errorf("產生K線圖失敗: %v", err)
 	}
 
-	return chartBytes, nil
+	return chartBytes, stockName, nil
 }
 
 // GetStockAnalysis 取得股票分析圖表

@@ -118,7 +118,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	c.SetFontSize(12)
 	c.SetClip(img.Bounds())
 	c.SetDst(img)
-	c.SetSrc(image.NewUniform(color.RGBA{157, 129, 137, 255})) // 黑色文字
+	c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255})) // 更深的灰色文字
 
 	// 解析績效資料
 	values := make([]float64, len(data))
@@ -168,8 +168,8 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	c.SetFontSize(10)
 
 	// 繪製座標軸
-	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+chartHeight, color.RGBA{157, 129, 137, 255})                        // Y軸
-	drawLine(img, chartLeft, chartTop+chartHeight, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{157, 129, 137, 255}) // X軸
+	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+chartHeight, color.RGBA{51, 51, 51, 255})                        // Y軸
+	drawLine(img, chartLeft, chartTop+chartHeight, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{51, 51, 51, 255}) // X軸
 
 	// 繪製格線和軸標籤
 	if config.ShowGrid {
@@ -181,7 +181,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 
 			// 水平格線
 			if i > 0 && i < yGridLines {
-				drawLine(img, chartLeft, y, chartLeft+chartWidth, y, color.RGBA{200, 200, 200, 255})
+				drawLine(img, chartLeft, y, chartLeft+chartWidth, y, color.RGBA{240, 240, 240, 255})
 			}
 
 			// Y軸標籤
@@ -204,7 +204,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 
 			// 垂直格線 - 減少格線數量
 			if i > 0 && i < len(data)-1 && i%labelStep == 0 {
-				drawLine(img, x, chartTop, x, chartTop+chartHeight, color.RGBA{200, 200, 200, 255})
+				drawLine(img, x, chartTop, x, chartTop+chartHeight, color.RGBA{240, 240, 240, 255})
 			}
 
 			// X軸標籤 - 只顯示部分標籤避免擁擠
@@ -243,7 +243,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 			x := chartLeft + (barSpacing * i) + (barSpacing-barWidth)/2
 
 			// 根據正負值選擇顏色和位置
-			barColor := color.RGBA{76, 175, 80, 255} // 綠色 (正值)
+			barColor := color.RGBA{144, 182, 154, 255} // 深一點的薄荷綠 (正值)
 			var y, barHeight int
 
 			if value >= 0 {
@@ -252,7 +252,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 				y = zeroY - barHeight
 			} else {
 				// 負值：從零點往下畫
-				barColor = color.RGBA{244, 67, 54, 255} // 紅色 (負值)
+				barColor = color.RGBA{212, 135, 135, 255} // 深一點的粉紅色 (負值)
 				barHeight = int((0 - value) / (maxVal - minVal) * float64(chartHeight))
 				y = zeroY
 			}
@@ -265,7 +265,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 
 	} else {
 		// 折線圖（X軸=時間，Y軸=績效）
-		lineColor := color.RGBA{33, 150, 243, 255} // 藍色
+		lineColor := color.RGBA{212, 135, 135, 255} // 深一點的粉紅色
 
 		// 繪製折線（只有連接線，不顯示資料點）
 		for i := range data {
@@ -278,7 +278,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 				prevValue := values[i-1]
 				prevX := chartLeft + (chartWidth * (i - 1) / (len(data) - 1))
 				prevY := chartTop + chartHeight - int((prevValue-minVal)/(maxVal-minVal)*float64(chartHeight))
-				drawLine(img, prevX, prevY, x, y, lineColor)
+				drawThickLine(img, prevX, prevY, x, y, 3, lineColor) // 使用3像素粗線
 			}
 		}
 
@@ -297,12 +297,12 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 		}
 	}
 
-	// 軸標籤
-	ptX := freetype.Pt(chartLeft+chartWidth/2-20, config.Height-40) // 增加底部邊距
+	// X軸標籤 - 移到X軸右端
+	ptX := freetype.Pt(chartLeft+chartWidth+10, chartTop+chartHeight+15)
 	c.DrawString("Time", ptX)
 
-	// Y軸標籤 (垂直文字效果用簡化版本)
-	pt2 := freetype.Pt(30, chartTop+chartHeight/2) // 增加左側邊距
+	// Y軸標籤 - 移到Y軸上端
+	pt2 := freetype.Pt(chartLeft-50, chartTop-10)
 	c.DrawString("Performance (%)", pt2)
 
 	// 將圖片編碼為 PNG
@@ -500,7 +500,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	c.SetFontSize(16) // 增加基礎字型大小
 	c.SetClip(img.Bounds())
 	c.SetDst(img)
-	c.SetSrc(image.NewUniform(color.RGBA{157, 129, 137, 255})) // 黑色文字
+	c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255})) // 更深的灰色文字
 
 	// 計算營收和年增率的範圍
 	minRevenue := data[0].Revenue
@@ -564,16 +564,16 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	// YoY數據使用紅色
 	c.SetSrc(image.NewUniform(color.RGBA{220, 53, 69, 255})) // 紅色
 	c.DrawString(yoyText, pt)
-	c.SetSrc(image.NewUniform(color.RGBA{157, 129, 137, 255})) // 重設為黑色
+	c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255})) // 重設為黑色
 
 	c.SetFontSize(16) // 調整基礎字型大小
 
 	// 繪製座標軸
-	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+chartHeight, color.RGBA{157, 129, 137, 255})                        // Y軸
-	drawLine(img, chartLeft, chartTop+chartHeight, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{157, 129, 137, 255}) // X軸
+	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+chartHeight, color.RGBA{51, 51, 51, 255})                        // Y軸
+	drawLine(img, chartLeft, chartTop+chartHeight, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{51, 51, 51, 255}) // X軸
 
 	// 繪製右側Y軸（年增率）
-	drawLine(img, chartLeft+chartWidth, chartTop, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{157, 129, 137, 255})
+	drawLine(img, chartLeft+chartWidth, chartTop, chartLeft+chartWidth, chartTop+chartHeight, color.RGBA{51, 51, 51, 255})
 
 	// 繪製格線和軸標籤
 	if config.ShowGrid {
@@ -631,7 +631,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	// 繪製柱狀圖（營收）
 	barWidth := chartWidth / len(data) * 6 / 10 // 60% 寬度
 	barSpacing := chartWidth / len(data)
-	barColor := color.RGBA{216, 226, 220, 255} // #d8e2dc 薄荷綠，柔和優雅
+	barColor := color.RGBA{144, 182, 154, 255} // 深一點的薄荷綠
 
 	for i, item := range data {
 		// 計算柱狀圖位置
@@ -667,7 +667,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	}
 
 	// 繪製折線圖（年增率）
-	lineColor := color.RGBA{244, 172, 183, 255} // #f4acb7 粉紅色，溫柔浪漫
+	lineColor := color.RGBA{212, 135, 135, 255} // 深一點的粉紅色
 
 	for i := range data {
 		value := data[i].YoY
@@ -695,15 +695,15 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 		c.SetSrc(image.NewUniform(color.RGBA{220, 53, 69, 255})) // 紅色
 		pt := freetype.Pt(textX, textY)
 		c.DrawString(yoyText, pt)
-		c.SetSrc(image.NewUniform(color.RGBA{157, 129, 137, 255})) // 重設為黑色
-		c.SetFontSize(16)                                          // 重設為原始字型大小
+		c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255})) // 重設為黑色
+		c.SetFontSize(16)                                       // 重設為原始字型大小
 
 		// 繪製粗線段 (除了第一個點)
 		if i > 0 {
 			prevValue := data[i-1].YoY
 			prevX := chartLeft + (chartWidth * (i - 1) / (len(data) - 1))
 			prevY := chartTop + chartHeight - int((prevValue-minYoY)/(maxYoY-minYoY)*float64(chartHeight))
-			drawThickLine(img, prevX, prevY, x, y, 3, lineColor) // 使用3像素粗的線
+			drawThickLine(img, prevX, prevY, x, y, 4, lineColor) // 使用4像素粗的線
 		}
 	}
 
@@ -723,21 +723,21 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 
 		// 年增率圖例
 		drawCircle(img, chartLeft+100, legendY+7, 5, lineColor)                             // 增大圓點
-		drawThickLine(img, chartLeft+85, legendY+7, chartLeft+115, legendY+7, 3, lineColor) // 使用粗線
+		drawThickLine(img, chartLeft+85, legendY+7, chartLeft+115, legendY+7, 4, lineColor) // 使用更粗線
 		pt = freetype.Pt(chartLeft+125, legendY+12)
 		c.DrawString("YoY", pt)
 	}
 
-	// 軸標籤
-	ptX := freetype.Pt(chartLeft+chartWidth/2-20, config.Height-30)
+	// X軸標籤 - 移到X軸右端，避免與時間標籤重疊
+	ptX := freetype.Pt(chartLeft+chartWidth+10, chartTop+chartHeight+40)
 	c.DrawString("時間", ptX)
 
-	// 左側Y軸標籤
-	pt1 := freetype.Pt(30, chartTop+chartHeight/2)
+	// 左側Y軸標籤 - 移到Y軸上端
+	pt1 := freetype.Pt(chartLeft-50, chartTop-10)
 	c.DrawString("營收 (億)", pt1)
 
-	// 右側Y軸標籤
-	pt2 := freetype.Pt(chartLeft+chartWidth+50, chartTop+chartHeight/2)
+	// 右側Y軸標籤 - 移到右側Y軸上端
+	pt2 := freetype.Pt(chartLeft+chartWidth+10, chartTop-10)
 	c.DrawString("YoY (%)", pt2)
 
 	// 將圖片編碼為 PNG
@@ -761,7 +761,7 @@ type CandlestickData struct {
 }
 
 // GenerateCandlestickChartPNG 生成K線圖 (PNG格式)
-func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]byte, error) {
+func GenerateCandlestickChartPNG(data []CandlestickData, stockName string, symbol string) ([]byte, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("無K線資料可生成圖表")
 	}
@@ -790,7 +790,7 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 	}
 
 	config := DefaultChartConfig()
-	config.Title = fmt.Sprintf("%s K線圖", stockName)
+	config.Title = fmt.Sprintf("%s (%s) K線圖", stockName, symbol)
 	config.Width = 1600
 	config.Height = 900
 
@@ -824,7 +824,7 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 	c.SetFont(ttf)
 	c.SetClip(img.Bounds())
 	c.SetDst(img)
-	c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255}))
+	c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255}))
 
 	// 找出價格和成交量的最大最小值
 	minPrice := data[0].Low
@@ -863,8 +863,8 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 	c.SetFontSize(12)
 
 	// 繪製坐標軸
-	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+priceChartHeight, color.RGBA{0, 0, 0, 255})
-	drawLine(img, chartLeft, chartTop+priceChartHeight, chartLeft+chartWidth, chartTop+priceChartHeight, color.RGBA{0, 0, 0, 255})
+	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+priceChartHeight, color.RGBA{51, 51, 51, 255})
+	drawLine(img, chartLeft, chartTop+priceChartHeight, chartLeft+chartWidth, chartTop+priceChartHeight, color.RGBA{51, 51, 51, 255})
 
 	// 繪製價格Y軸標籤
 	yGridLines := 5
@@ -874,7 +874,7 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 		label := fmt.Sprintf("%.2f", price)
 		c.DrawString(label, freetype.Pt(chartLeft-60, y+5))
 		if i > 0 && i < yGridLines {
-			drawLine(img, chartLeft, y, chartLeft+chartWidth, y, color.RGBA{200, 200, 200, 255})
+			drawLine(img, chartLeft, y, chartLeft+chartWidth, y, color.RGBA{220, 220, 220, 255})
 		}
 	}
 
@@ -897,10 +897,10 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 		}
 		var candleColor color.RGBA
 		if d.Close >= d.Open {
-			candleColor = color.RGBA{239, 83, 80, 255} // 柔和紅色 #EF5350
+			candleColor = color.RGBA{212, 135, 135, 255} // 深一點的粉紅色
 			drawRect(img, x-bodyWidth/2, closeY, bodyWidth, openY-closeY, candleColor)
 		} else {
-			candleColor = color.RGBA{102, 187, 106, 255} // 柔和綠色 #66BB6A
+			candleColor = color.RGBA{144, 182, 154, 255} // 深一點的薄荷綠
 			drawRect(img, x-bodyWidth/2, openY, bodyWidth, closeY-openY, candleColor)
 		}
 
@@ -913,7 +913,7 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 
 				// 繪製月份標籤
 				c.SetFontSize(10)
-				c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255}))
+				c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255}))
 				c.DrawString(monthLabel, freetype.Pt(x-15, chartTop+priceChartHeight+20))
 
 				// 只有不是第一個資料點時才顯示均價
@@ -923,12 +923,12 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 					avgLabel := fmt.Sprintf("%.2f", monthAvg)
 
 					// 繪製均價標籤
-					c.SetSrc(image.NewUniform(color.RGBA{33, 150, 243, 255})) // 藍色
+					c.SetSrc(image.NewUniform(color.RGBA{180, 100, 100, 255})) // 更深的粉紅色
 					c.DrawString(avgLabel, freetype.Pt(x-20, chartTop+priceChartHeight+35))
 				}
 
 				// 繪製垂直虛線
-				drawDashedVerticalLine(img, x, chartTop, chartTop+priceChartHeight, color.RGBA{200, 200, 200, 255})
+				drawDashedVerticalLine(img, x, chartTop, chartTop+priceChartHeight, color.RGBA{220, 220, 220, 255})
 
 				c.SetFontSize(12)
 			}
@@ -936,9 +936,9 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 	}
 
 	// 繪製成交量
-	volumeChartTop := chartTop + priceChartHeight + 50
-	drawLine(img, chartLeft, volumeChartTop, chartLeft, volumeChartTop+volumeHeight, color.RGBA{0, 0, 0, 255})
-	drawLine(img, chartLeft, volumeChartTop+volumeHeight, chartLeft+chartWidth, volumeChartTop+volumeHeight, color.RGBA{0, 0, 0, 255})
+	volumeChartTop := chartTop + priceChartHeight + 150
+	drawLine(img, chartLeft, volumeChartTop, chartLeft, volumeChartTop+volumeHeight, color.RGBA{51, 51, 51, 255})
+	drawLine(img, chartLeft, volumeChartTop+volumeHeight, chartLeft+chartWidth, volumeChartTop+volumeHeight, color.RGBA{51, 51, 51, 255})
 
 	// 成交量Y軸標籤 (單位：千萬元)
 	c.DrawString(fmt.Sprintf("%.1f千萬", maxVolume/10000000), freetype.Pt(chartLeft-80, volumeChartTop+5))
@@ -955,9 +955,9 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 
 		var volColor color.RGBA
 		if d.Close >= d.Open {
-			volColor = color.RGBA{239, 83, 80, 255} // 柔和紅色 #EF5350
+			volColor = color.RGBA{212, 135, 135, 255} // 深一點的粉紅色
 		} else {
-			volColor = color.RGBA{102, 187, 106, 255} // 柔和綠色 #66BB6A
+			volColor = color.RGBA{144, 182, 154, 255} // 深一點的薄荷綠
 		}
 		drawRect(img, x, y, barWidth, barHeight, volColor)
 	}
@@ -970,25 +970,33 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]by
 		highX := chartLeft + int(candleWidth*float64(highestIndex)+candleWidth/2)
 		highY := chartTop + int(float64(priceChartHeight)*(1-(highestHigh-minPrice)/(maxPrice-minPrice))) - 20
 		c.SetFontSize(14)
-		c.SetSrc(image.NewUniform(color.RGBA{239, 83, 80, 255})) // 柔和紅色
+		c.SetSrc(image.NewUniform(color.RGBA{212, 135, 135, 255})) // 深一點的粉紅色
 		c.DrawString(fmt.Sprintf("最高: %.2f", highestHigh), freetype.Pt(highX-30, highY))
 
 		// 標示最低價
 		lowX := chartLeft + int(candleWidth*float64(lowestIndex)+candleWidth/2)
 		lowY := chartTop + int(float64(priceChartHeight)*(1-(lowestLow-minPrice)/(maxPrice-minPrice))) + 30
-		c.SetSrc(image.NewUniform(color.RGBA{102, 187, 106, 255})) // 柔和綠色
+		c.SetSrc(image.NewUniform(color.RGBA{144, 182, 154, 255})) // 深一點的薄荷綠
 		c.DrawString(fmt.Sprintf("最低: %.2f", lowestLow), freetype.Pt(lowX-30, lowY))
 
 		// 重設為黑色
-		c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255}))
+		c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255}))
 		c.SetFontSize(12)
 	}
 
 	// 在右側標示「月均價」說明
 	c.SetFontSize(12)
-	c.SetSrc(image.NewUniform(color.RGBA{33, 150, 243, 255})) // 藍色
+	c.SetSrc(image.NewUniform(color.RGBA{180, 100, 100, 255})) // 更深的粉紅色
 	c.DrawString("月均價", freetype.Pt(chartLeft+chartWidth+10, chartTop+priceChartHeight+35))
-	c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255})) // 重設為黑色
+
+	// 軸標籤
+	c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255})) // 重設為黑色
+	// X軸標籤 - 移到X軸右端
+	c.DrawString("時間", freetype.Pt(chartLeft+chartWidth+10, chartTop+priceChartHeight+15))
+	// Y軸標籤 - 移到Y軸上端
+	c.DrawString("價格", freetype.Pt(chartLeft-30, chartTop-10))
+	// 成交量Y軸標籤 - 移到成交量Y軸上端
+	c.DrawString("成交量", freetype.Pt(chartLeft-40, volumeChartTop-10))
 
 	buf := bytes.Buffer{}
 	err = png.Encode(&buf, img)

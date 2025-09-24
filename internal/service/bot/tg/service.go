@@ -226,13 +226,14 @@ func (s *TgService) GetStockHistoricalCandlesChart(symbol string) ([]byte, strin
 		Timeframe: "D",
 		Fields:    "open,high,low,close,volume",
 	}
-	chart, err := s.stockService.GetStockHistoricalCandlesChart(dto)
+
+	chart, stockName, err := s.stockService.GetStockHistoricalCandlesChart(dto)
 	if err != nil {
 		logger.Log.Error("取得股票歷史K線圖失敗", zap.Error(err))
 		return nil, "", fmt.Errorf("查無資料，請確認後再試")
 	}
 
-	caption := fmt.Sprintf("⚡️%s(%s)-歷史K線圖", symbol, symbol)
+	caption := fmt.Sprintf("⚡️%s(%s)-歷史K線圖", stockName, symbol)
 	return chart, caption, nil
 }
 
