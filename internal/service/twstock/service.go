@@ -605,16 +605,61 @@ func (s *StockService) GetStockNews(stockID string) ([]dto.TaiwanNewsResponseDat
 }
 
 // GetStockIntradayQuote 取得股票盤中即時資料
-func (s *StockService) GetStockIntradayQuote(stockID string) (*fugleDto.FugleStockQuoteResponseDto, error) {
-	requestDto := fugleDto.FugleStockQuoteRequestDto{
-		Symbol: stockID,
-	}
-	response, err := s.fugleClient.GetStockIntradayQuote(requestDto)
+func (s *StockService) GetStockIntradayQuote(dto fugleDto.FugleStockQuoteRequestDto) (*fugleDto.FugleStockQuoteResponseDto, error) {
+	response, err := s.fugleClient.GetStockIntradayQuote(dto)
 	if err != nil {
 		return nil, err
 	}
 
 	return &response, nil
+}
+
+// GetStockHistoricalCandles 取得股票歷史 K 線
+func (s *StockService) GetStockHistoricalCandles(dto fugleDto.FugleCandlesRequestDto) (*fugleDto.FugleCandlesResponseDto, error) {
+	response, err := s.fugleClient.GetStockHistoricalCandles(dto)
+	if err != nil {
+		return nil, err
+	}
+	return &response, nil
+}
+
+// GetStockHistoricalCandlesChart 取得股票歷史 K 線圖
+func (s *StockService) GetStockHistoricalCandlesChart(dto fugleDto.FugleCandlesRequestDto) ([]byte, error) {
+	response, err := s.fugleClient.GetStockHistoricalCandles(dto)
+	if err != nil {
+		return nil, err
+	}
+	if len(response.Data) == 0 {
+		return nil, fmt.Errorf("查無K線資料")
+	}
+
+	// 取得股票名稱
+	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(dto.Symbol, "TW")
+	stockName := dto.Symbol
+	if err == nil && symbol != nil {
+		stockName = symbol.Name
+	}
+
+	// 轉換資料
+	chartData := make([]imageutil.CandlestickData, len(response.Data))
+	for i, d := range response.Data {
+		chartData[i] = imageutil.CandlestickData{
+			Date:   d.Date,
+			Open:   d.Open,
+			High:   d.High,
+			Low:    d.Low,
+			Close:  d.Close,
+			Volume: d.Volume,
+		}
+	}
+
+	// 產生圖表
+	chartBytes, err := imageutil.GenerateCandlestickChartPNG(chartData, stockName)
+	if err != nil {
+		return nil, fmt.Errorf("產生K線圖失敗: %v", err)
+	}
+
+	return chartBytes, nil
 }
 
 // GetStockAnalysis 取得股票分析圖表

@@ -84,6 +84,8 @@ func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
 		return s.commandHandler.CommandStockInfo(userID, arg1, arg2)
 	case "/r":
 		return s.commandHandler.CommandRevenue(userID, arg1)
+	case "/kline":
+		return s.commandHandler.CommandHistoricalCandles(userID, arg1)
 	case "/n":
 		return s.commandHandler.CommandNews(userID, arg1)
 	// case "/yn":

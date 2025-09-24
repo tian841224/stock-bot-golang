@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
@@ -747,4 +748,314 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	}
 
 	return buf.Bytes(), nil
+}
+
+// CandlestickData K線資料結構
+type CandlestickData struct {
+	Date   string
+	Open   float64
+	High   float64
+	Low    float64
+	Close  float64
+	Volume float64
+}
+
+// GenerateCandlestickChartPNG 生成K線圖 (PNG格式)
+func GenerateCandlestickChartPNG(data []CandlestickData, stockName string) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, fmt.Errorf("無K線資料可生成圖表")
+	}
+
+	// Reverse data to have dates in ascending order for the chart
+	for i, j := 0, len(data)-1; i < j; i, j = i+1, j-1 {
+		data[i], data[j] = data[j], data[i]
+	}
+
+	// Find the highest high and lowest low prices and their indices.
+	var highestHigh, lowestLow float64
+	var highestIndex, lowestIndex int
+	if len(data) > 0 {
+		highestHigh = data[0].High
+		lowestLow = data[0].Low
+		for i, d := range data {
+			if d.High > highestHigh {
+				highestHigh = d.High
+				highestIndex = i
+			}
+			if d.Low < lowestLow {
+				lowestLow = d.Low
+				lowestIndex = i
+			}
+		}
+	}
+
+	config := DefaultChartConfig()
+	config.Title = fmt.Sprintf("%s K線圖", stockName)
+	config.Width = 1600
+	config.Height = 900
+
+	img := image.NewRGBA(image.Rect(0, 0, config.Width, config.Height))
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
+
+	var ttf *truetype.Font
+	var err error
+	fontLoaded := false
+	for _, fontPath := range config.chineseFontPaths {
+		if _, err := os.Stat(fontPath); err == nil {
+			fontBytes, err := os.ReadFile(fontPath)
+			if err == nil {
+				ttf, err = truetype.Parse(fontBytes)
+				if err == nil {
+					fontLoaded = true
+					break
+				}
+			}
+		}
+	}
+	if !fontLoaded {
+		ttf, err = truetype.Parse(goregular.TTF)
+		if err != nil {
+			return nil, fmt.Errorf("載入字型失敗: %v", err)
+		}
+	}
+
+	c := freetype.NewContext()
+	c.SetDPI(72)
+	c.SetFont(ttf)
+	c.SetClip(img.Bounds())
+	c.SetDst(img)
+	c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255}))
+
+	// 找出價格和成交量的最大最小值
+	minPrice := data[0].Low
+	maxPrice := data[0].High
+	maxVolume := data[0].Volume
+	for _, d := range data {
+		if d.High > maxPrice {
+			maxPrice = d.High
+		}
+		if d.Low < minPrice {
+			minPrice = d.Low
+		}
+		if d.Volume > maxVolume {
+			maxVolume = d.Volume
+		}
+	}
+	priceMargin := (maxPrice - minPrice) * 0.1
+	maxPrice += priceMargin
+	minPrice -= priceMargin
+	if minPrice < 0 {
+		minPrice = 0
+	}
+
+	chartLeft := 100
+	chartTop := 100
+	chartWidth := config.Width - 200
+	chartHeight := config.Height - 300
+	volumeHeight := 100
+	priceChartHeight := chartHeight - volumeHeight - 50
+
+	// 繪製標題
+	c.SetFontSize(24)
+	titleWidth := len(config.Title) * 12
+	titleX := (config.Width - titleWidth) / 2
+	c.DrawString(config.Title, freetype.Pt(titleX, 50))
+	c.SetFontSize(12)
+
+	// 繪製坐標軸
+	drawLine(img, chartLeft, chartTop, chartLeft, chartTop+priceChartHeight, color.RGBA{0, 0, 0, 255})
+	drawLine(img, chartLeft, chartTop+priceChartHeight, chartLeft+chartWidth, chartTop+priceChartHeight, color.RGBA{0, 0, 0, 255})
+
+	// 繪製價格Y軸標籤
+	yGridLines := 5
+	for i := 0; i <= yGridLines; i++ {
+		y := chartTop + (priceChartHeight * i / yGridLines)
+		price := maxPrice - (maxPrice-minPrice)*float64(i)/float64(yGridLines)
+		label := fmt.Sprintf("%.2f", price)
+		c.DrawString(label, freetype.Pt(chartLeft-60, y+5))
+		if i > 0 && i < yGridLines {
+			drawLine(img, chartLeft, y, chartLeft+chartWidth, y, color.RGBA{200, 200, 200, 255})
+		}
+	}
+
+	// 繪製K線
+	candleWidth := float64(chartWidth) / float64(len(data))
+	for i, d := range data {
+		x := chartLeft + int(candleWidth*float64(i)+candleWidth/2)
+		highY := chartTop + int(float64(priceChartHeight)*(1-(d.High-minPrice)/(maxPrice-minPrice)))
+		lowY := chartTop + int(float64(priceChartHeight)*(1-(d.Low-minPrice)/(maxPrice-minPrice)))
+		openY := chartTop + int(float64(priceChartHeight)*(1-(d.Open-minPrice)/(maxPrice-minPrice)))
+		closeY := chartTop + int(float64(priceChartHeight)*(1-(d.Close-minPrice)/(maxPrice-minPrice)))
+
+		// 影線
+		drawLine(img, x, highY, x, lowY, color.RGBA{158, 158, 158, 255})
+
+		// 實體
+		bodyWidth := int(candleWidth * 0.8)
+		if bodyWidth < 1 {
+			bodyWidth = 1
+		}
+		var candleColor color.RGBA
+		if d.Close >= d.Open {
+			candleColor = color.RGBA{239, 83, 80, 255} // 柔和紅色 #EF5350
+			drawRect(img, x-bodyWidth/2, closeY, bodyWidth, openY-closeY, candleColor)
+		} else {
+			candleColor = color.RGBA{102, 187, 106, 255} // 柔和綠色 #66BB6A
+			drawRect(img, x-bodyWidth/2, openY, bodyWidth, closeY-openY, candleColor)
+		}
+
+		// X軸標籤 - 顯示每月1號和該月均價
+		if i == 0 || isFirstDayOfMonth(d.Date, data, i) {
+			// 解析日期
+			dateTime, err := time.Parse("2006-01-02", strings.Split(d.Date, "T")[0])
+			if err == nil {
+				monthLabel := dateTime.Format("1/2")
+
+				// 繪製月份標籤
+				c.SetFontSize(10)
+				c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255}))
+				c.DrawString(monthLabel, freetype.Pt(x-15, chartTop+priceChartHeight+20))
+
+				// 只有不是第一個資料點時才顯示均價
+				if i != 0 {
+					// 計算該月均價
+					monthAvg := calculateMonthlyAverage(data, i)
+					avgLabel := fmt.Sprintf("%.2f", monthAvg)
+
+					// 繪製均價標籤
+					c.SetSrc(image.NewUniform(color.RGBA{33, 150, 243, 255})) // 藍色
+					c.DrawString(avgLabel, freetype.Pt(x-20, chartTop+priceChartHeight+35))
+				}
+
+				// 繪製垂直虛線
+				drawDashedVerticalLine(img, x, chartTop, chartTop+priceChartHeight, color.RGBA{200, 200, 200, 255})
+
+				c.SetFontSize(12)
+			}
+		}
+	}
+
+	// 繪製成交量
+	volumeChartTop := chartTop + priceChartHeight + 50
+	drawLine(img, chartLeft, volumeChartTop, chartLeft, volumeChartTop+volumeHeight, color.RGBA{0, 0, 0, 255})
+	drawLine(img, chartLeft, volumeChartTop+volumeHeight, chartLeft+chartWidth, volumeChartTop+volumeHeight, color.RGBA{0, 0, 0, 255})
+
+	// 成交量Y軸標籤 (單位：千萬元)
+	c.DrawString(fmt.Sprintf("%.1f千萬", maxVolume/10000000), freetype.Pt(chartLeft-80, volumeChartTop+5))
+	c.DrawString("0", freetype.Pt(chartLeft-60, volumeChartTop+volumeHeight+5))
+
+	for i, d := range data {
+		x := chartLeft + int(candleWidth*float64(i)+candleWidth*0.1)
+		barHeight := int(float64(volumeHeight) * (d.Volume / maxVolume))
+		y := volumeChartTop + volumeHeight - barHeight
+		barWidth := int(candleWidth * 0.8)
+		if barWidth < 1 {
+			barWidth = 1
+		}
+
+		var volColor color.RGBA
+		if d.Close >= d.Open {
+			volColor = color.RGBA{239, 83, 80, 255} // 柔和紅色 #EF5350
+		} else {
+			volColor = color.RGBA{102, 187, 106, 255} // 柔和綠色 #66BB6A
+		}
+		drawRect(img, x, y, barWidth, barHeight, volColor)
+	}
+
+	// 在最高價和最低價的K線上標示價格
+	if len(data) > 0 {
+		candleWidth := float64(chartWidth) / float64(len(data))
+
+		// 標示最高價
+		highX := chartLeft + int(candleWidth*float64(highestIndex)+candleWidth/2)
+		highY := chartTop + int(float64(priceChartHeight)*(1-(highestHigh-minPrice)/(maxPrice-minPrice))) - 20
+		c.SetFontSize(14)
+		c.SetSrc(image.NewUniform(color.RGBA{239, 83, 80, 255})) // 柔和紅色
+		c.DrawString(fmt.Sprintf("最高: %.2f", highestHigh), freetype.Pt(highX-30, highY))
+
+		// 標示最低價
+		lowX := chartLeft + int(candleWidth*float64(lowestIndex)+candleWidth/2)
+		lowY := chartTop + int(float64(priceChartHeight)*(1-(lowestLow-minPrice)/(maxPrice-minPrice))) + 30
+		c.SetSrc(image.NewUniform(color.RGBA{102, 187, 106, 255})) // 柔和綠色
+		c.DrawString(fmt.Sprintf("最低: %.2f", lowestLow), freetype.Pt(lowX-30, lowY))
+
+		// 重設為黑色
+		c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255}))
+		c.SetFontSize(12)
+	}
+
+	// 在右側標示「月均價」說明
+	c.SetFontSize(12)
+	c.SetSrc(image.NewUniform(color.RGBA{33, 150, 243, 255})) // 藍色
+	c.DrawString("月均價", freetype.Pt(chartLeft+chartWidth+10, chartTop+priceChartHeight+35))
+	c.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255})) // 重設為黑色
+
+	buf := bytes.Buffer{}
+	err = png.Encode(&buf, img)
+	if err != nil {
+		return nil, fmt.Errorf("編碼 PNG 失敗: %v", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// isFirstDayOfMonth 檢查是否為月份的第一個交易日
+func isFirstDayOfMonth(dateStr string, data []CandlestickData, currentIndex int) bool {
+	if currentIndex == 0 {
+		return true
+	}
+
+	currentDate, err := time.Parse("2006-01-02", strings.Split(dateStr, "T")[0])
+	if err != nil {
+		return false
+	}
+
+	prevDate, err := time.Parse("2006-01-02", strings.Split(data[currentIndex-1].Date, "T")[0])
+	if err != nil {
+		return false
+	}
+
+	return currentDate.Month() != prevDate.Month()
+}
+
+// calculateMonthlyAverage 計算該月的收盤價平均值
+func calculateMonthlyAverage(data []CandlestickData, startIndex int) float64 {
+	startDate, err := time.Parse("2006-01-02", strings.Split(data[startIndex].Date, "T")[0])
+	if err != nil {
+		return data[startIndex].Close
+	}
+
+	sum := 0.0
+	count := 0
+
+	for i := startIndex; i < len(data); i++ {
+		currentDate, err := time.Parse("2006-01-02", strings.Split(data[i].Date, "T")[0])
+		if err != nil {
+			break
+		}
+
+		// 如果不是同一個月，停止計算
+		if currentDate.Month() != startDate.Month() || currentDate.Year() != startDate.Year() {
+			break
+		}
+
+		sum += data[i].Close
+		count++
+	}
+
+	if count == 0 {
+		return data[startIndex].Close
+	}
+
+	return sum / float64(count)
+}
+
+// drawDashedVerticalLine 繪製垂直虛線
+func drawDashedVerticalLine(img *image.RGBA, x, y1, y2 int, col color.RGBA) {
+	dash := 0
+	for y := y1; y <= y2; y++ {
+		if dash%8 < 4 { // 4像素實線，4像素空白
+			img.Set(x, y, col)
+		}
+		dash++
+	}
 }

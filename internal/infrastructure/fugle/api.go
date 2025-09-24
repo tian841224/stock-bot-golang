@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"stock-bot/config"
 	"stock-bot/internal/infrastructure/fugle/dto"
 	"time"
@@ -62,56 +63,65 @@ func (f *FugleAPI) GetStockIntradayCandles(requestDto dto.FugleCandlesRequestDto
 
 // 取得股票歷史Ｋ線
 func (f *FugleAPI) GetStockHistoricalCandles(requestDto dto.FugleCandlesRequestDto) (dto.FugleCandlesResponseDto, error) {
-	url := f.baseURL + "/historical/candles/" + requestDto.Symbol
+	apiURL := f.baseURL + "/historical/candles/" + requestDto.Symbol
+	params := url.Values{}
+	if requestDto.Timeframe != "" {
+		params.Add("timeframe", requestDto.Timeframe)
+	}
 	if requestDto.From != "" {
-		url += "?from=" + requestDto.From
+		params.Add("from", requestDto.From)
 	}
 	if requestDto.To != "" {
-		url += "?to=" + requestDto.To
-	}
-	if requestDto.Timeframe != "" {
-		url += "?timeframe=" + requestDto.Timeframe
+		params.Add("to", requestDto.To)
 	}
 	if requestDto.Fields != "" {
-		url += "?fields=" + requestDto.Fields
+		params.Add("fields", requestDto.Fields)
 	}
 	if requestDto.Sort != "" {
-		url += "?sort=" + requestDto.Sort
+		params.Add("sort", requestDto.Sort)
 	}
-	return getResponse[dto.FugleCandlesResponseDto](f, url)
+	if len(params) > 0 {
+		apiURL += "?" + params.Encode()
+	}
+	return getResponse[dto.FugleCandlesResponseDto](f, apiURL)
 }
 
 // 取得股票漲跌幅排行快照(需開發者權限)
 func (f *FugleAPI) GetStockSnapshotMovers(requestDto dto.FugleMoversRequestDto) (dto.FugleMoversResponseDto, error) {
-	url := f.baseURL + "/snapshot/movers"
+	apiURL := f.baseURL + "/snapshot/movers"
+	params := url.Values{}
 	if requestDto.Market != "" {
-		url += "?market=" + requestDto.Market
+		params.Add("market", requestDto.Market)
 	}
 	if requestDto.Direction != "" {
-		url += "?direction=" + requestDto.Direction
+		params.Add("direction", requestDto.Direction)
 	}
 	if requestDto.Change != "" {
-		url += "?change=" + requestDto.Change
+		params.Add("change", requestDto.Change)
 	}
 	if requestDto.Type != "" {
-		url += "?type=" + requestDto.Type
+		params.Add("type", requestDto.Type)
 	}
 	if requestDto.Gt != "" {
-		url += "?gt=" + requestDto.Gt
+		params.Add("gt", requestDto.Gt)
 	}
 	if requestDto.Gte != "" {
-		url += "?gte=" + requestDto.Gte
+		params.Add("gte", requestDto.Gte)
 	}
 	if requestDto.Lt != "" {
-		url += "?lt=" + requestDto.Lt
+		params.Add("lt", requestDto.Lt)
 	}
 	if requestDto.Lte != "" {
-		url += "?lte=" + requestDto.Lte
+		params.Add("lte", requestDto.Lte)
 	}
 	if requestDto.Eq != "" {
-		url += "?eq=" + requestDto.Eq
+		params.Add("eq", requestDto.Eq)
 	}
-	return getResponse[dto.FugleMoversResponseDto](f, url)
+
+	if len(params) > 0 {
+		apiURL += "?" + params.Encode()
+	}
+	return getResponse[dto.FugleMoversResponseDto](f, apiURL)
 }
 
 func getResponse[T any](c *FugleAPI, url string) (response T, err error) {

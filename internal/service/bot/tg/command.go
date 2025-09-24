@@ -199,6 +199,19 @@ func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date str
 	return c.sendMessageHTML(userID, message)
 }
 
+func (c *TgCommandHandler) CommandHistoricalCandles(userID int64, symbol string) error {
+	if symbol == "" {
+		return c.sendMessage(userID, "請輸入股票代號")
+	}
+
+	chartData, caption, err := c.tgService.GetStockHistoricalCandlesChart(symbol)
+	if err != nil {
+		return c.sendMessage(userID, err.Error())
+	}
+
+	return c.sendPhoto(userID, chartData, caption)
+}
+
 // CommandNews 處理 /n 命令 - 股票新聞
 func (c *TgCommandHandler) CommandNews(userID int64, symbol string) error {
 	if symbol == "" {

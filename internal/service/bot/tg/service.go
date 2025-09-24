@@ -2,6 +2,7 @@ package tg
 
 import (
 	"fmt"
+	fugleDto "stock-bot/internal/infrastructure/fugle/dto"
 	"stock-bot/internal/repository"
 	tgDto "stock-bot/internal/service/bot/tg/dto"
 	"stock-bot/internal/service/twstock"
@@ -217,6 +218,62 @@ func (s *TgService) GetStockRevenueWithChart(symbol string) ([]byte, string, err
 	return chart, message, nil
 }
 
+func (s *TgService) GetStockHistoricalCandlesChart(symbol string) ([]byte, string, error) {
+	dto := fugleDto.FugleCandlesRequestDto{
+		Symbol: symbol,
+		From:   time.Now().AddDate(-1, 0, 1).Format("2006-01-02"),
+		// To:        time.Now().Format("2006-01-02"),
+		Timeframe: "D",
+		Fields:    "open,high,low,close,volume",
+	}
+	chart, err := s.stockService.GetStockHistoricalCandlesChart(dto)
+	if err != nil {
+		logger.Log.Error("取得股票歷史K線圖失敗", zap.Error(err))
+		return nil, "", fmt.Errorf("查無資料，請確認後再試")
+	}
+
+	caption := fmt.Sprintf("⚡️%s(%s)-歷史K線圖", symbol, symbol)
+	return chart, caption, nil
+}
+
+// GetTaiwanStockNews 取得股票新聞
+func (s *TgService) GetTaiwanStockNews(symbol string) (*tgDto.StockNewsMessage, error) {
+	// 驗證股票代號
+	valid, stockName, err := s.stockService.ValidateStockID(symbol)
+	if err != nil || !valid {
+		return nil, fmt.Errorf("查無此股票代號，請重新確認")
+	}
+
+	// 取得新聞
+	news, err := s.stockService.GetStockNews(symbol)
+	if err != nil {
+		logger.Log.Error("取得股票新聞失敗", zap.Error(err))
+		return nil, fmt.Errorf("取得新聞失敗，請稍後再試")
+	}
+
+	if len(news) == 0 {
+		return &tgDto.StockNewsMessage{
+			Text: fmt.Sprintf("⚡️%s(%s)-即時新聞\n\n暫無新聞資料", stockName, symbol),
+		}, nil
+	}
+
+	// 建立新聞按鈕
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, n := range news {
+		btn := tgbotapi.NewInlineKeyboardButtonURL(n.Title, n.Link)
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(btn))
+	}
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	// 組合訊息
+	message := &tgDto.StockNewsMessage{
+		Text:                 fmt.Sprintf("⚡️%s(%s)-即時新聞", stockName, symbol),
+		InlineKeyboardMarkup: &keyboard,
+	}
+
+	return message, nil
+}
+
 // AddUserStockSubscription 新增使用者股票訂閱
 func (s *TgService) AddUserStockSubscription(userID uint, symbol string) (string, error) {
 	// 驗證股票代號
@@ -300,51 +357,6 @@ func (s *TgService) GetUserSubscriptionList(userID uint) (string, error) {
 	}
 
 	return messageText, nil
-}
-
-// GetTaiwanStockNews 取得股票新聞
-func (s *TgService) GetTaiwanStockNews(symbol string) (*tgDto.StockNewsMessage, error) {
-	// 驗證股票代號
-	valid, stockName, err := s.stockService.ValidateStockID(symbol)
-	if err != nil || !valid {
-		return nil, fmt.Errorf("查無此股票代號，請重新確認")
-	}
-
-	// 取得新聞
-	news, err := s.stockService.GetStockNews(symbol)
-	if err != nil {
-		logger.Log.Error("取得股票新聞失敗", zap.Error(err))
-		return nil, fmt.Errorf("取得新聞失敗，請稍後再試")
-	}
-
-	if len(news) == 0 {
-		return &tgDto.StockNewsMessage{
-			Text: fmt.Sprintf("⚡️%s(%s)-即時新聞\n\n暫無新聞資料", stockName, symbol),
-		}, nil
-	}
-
-	// 建立新聞按鈕
-	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, n := range news {
-		btn := tgbotapi.NewInlineKeyboardButtonURL(n.Title, n.Link)
-		rows = append(rows, tgbotapi.NewInlineKeyboardRow(btn))
-	}
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
-
-	// 組合訊息
-	message := &tgDto.StockNewsMessage{
-		Text:                 fmt.Sprintf("⚡️%s(%s)-即時新聞", stockName, symbol),
-		InlineKeyboardMarkup: &keyboard,
-	}
-
-	return message, nil
-}
-
-// GetYahooStockNews 取得 Yahoo 股票新聞
-func (s *TgService) GetYahooStockNews(symbol string) (string, error) {
-	// 這裡需要實際的 Yahoo 新聞服務，暫時返回模擬資料
-	message := fmt.Sprintf("⚡️%s-即時新聞\n\n暫無新聞資料，功能開發中...", symbol)
-	return message, nil
 }
 
 // GetDailyMarketInfo 取得大盤資訊
