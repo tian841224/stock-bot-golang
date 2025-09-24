@@ -69,46 +69,51 @@ func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
 	case "/start":
 		return s.commandHandler.CommandStart(userID)
 	case "/k":
-		return s.commandHandler.CommandKline(userID, arg1, arg2)
+		// 歷史K線圖
+		return s.commandHandler.CommandHistoricalCandles(userID, arg1)
 	case "/p":
-		return s.commandHandler.CommandPerformance(userID, arg1)
-	case "/pc":
+		// 績效圖表
 		return s.commandHandler.CommandPerformanceChart(userID, arg1)
-	case "/pb":
-		return s.commandHandler.CommandPerformanceBarChart(userID, arg1)
 	case "/d":
+		// 今日股價
 		return s.commandHandler.CommandTodayStockPrice(userID, arg1, arg2)
 	case "/t":
+		// 交易量前20名
 		return s.commandHandler.CommandTopVolumeItems(userID)
 	case "/i":
+		// 股票資訊
 		return s.commandHandler.CommandStockInfo(userID, arg1, arg2)
 	case "/r":
+		// 財報
 		return s.commandHandler.CommandRevenue(userID, arg1)
-	case "/kline":
-		return s.commandHandler.CommandHistoricalCandles(userID, arg1)
 	case "/n":
+		// 新聞
 		return s.commandHandler.CommandNews(userID, arg1)
-	// case "/yn":
-	// 	return s.commandHandler.sendMessage(userID, "Yahoo新聞功能暫時停用")
-	// case "/m":
-	// 	count := 1
-	// 	if arg1 != "" {
-	// 		if c, err := strconv.Atoi(arg1); err == nil {
-	// 			count = c
-	// 		}
-	// 	}
-	// 	return s.commandHandler.CommandDailyMarketInfo(userID, count)
-
+	case "/m":
+		// 大盤資訊
+		count := 1 // 預設顯示5筆
+		if arg1 != "" {
+			if parsedCount, err := strconv.Atoi(arg1); err == nil && parsedCount > 0 {
+				count = parsedCount
+			}
+		}
+		return s.commandHandler.CommandDailyMarketInfo(userID, count)
 	case "/sub":
+		// 訂閱
 		return s.commandHandler.CommandSubscribe(userID, arg1)
 	case "/unsub":
+		// 取消訂閱
 		return s.commandHandler.CommandUnsubscribe(userID, arg1)
 	case "/add":
+		// 新增股票
 		return s.commandHandler.CommandAddStock(userID, arg1)
 	case "/del":
+		// 刪除股票
 		return s.commandHandler.CommandDeleteStock(userID, arg1)
 	case "/list":
+		// 訂閱清單
 		return s.commandHandler.CommandListSubscriptions(userID)
+
 	default:
 		return nil
 	}

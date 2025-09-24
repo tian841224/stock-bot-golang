@@ -434,14 +434,6 @@ func GeneratePerformanceLineChart(data []PerformanceData, title string) ([]byte,
 	return GeneratePerformanceChartPNG(data, config)
 }
 
-// GeneratePerformanceBarChart 生成柱狀圖 (PNG格式)
-func GeneratePerformanceBarChart(data []PerformanceData, title string) ([]byte, error) {
-	config := DefaultChartConfig()
-	config.Title = title
-	config.ChartType = "bar"
-	return GeneratePerformanceChartPNG(data, config)
-}
-
 // GenerateRevenueChartPNG 生成營收圖表 (柱狀圖+折線圖組合)
 func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte, error) {
 

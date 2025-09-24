@@ -42,90 +42,39 @@ func NewTgCommandHandler(
 func (c *TgCommandHandler) CommandStart(userID int64) error {
 	text := `台股機器人指令指南🤖
 
-📊 基本K線圖
-格式：/k [股票代碼] [時間範圍]
+📊 圖表指令
+- /k [股票代碼] - K線圖 (含月均價、最高最低價標示)
+- /p [股票代碼] - 股票績效圖表 (折線圖)
 
-時間範圍選項（預設：d）：
-- h - 時K線
-- d - 日K線
-- w - 週K線
-- m - 月K線
-- 5m - 5分K線
-- 15m - 15分K線
-- 30m - 30分K線
-- 60m - 60分K線
-
-股票資訊指令
+📈 股票資訊指令
 - /d [股票代碼] - 查詢今日股價詳細資訊
 - /d [股票代碼] [日期] - 查詢指定日期股價 (格式: YYYY-MM-DD)
-- /p [股票代碼] - 查詢股票績效
-- /pc [股票代碼] - 查詢股票績效圖表 (折線圖)
-- /pb [股票代碼] - 查詢股票績效圖表 (柱狀圖)
-- /n [股票代碼] - 查詢股票新聞
-- /yn [股票代碼] - 查詢Yahoo股票新聞（預設：台股新聞）
 - /i [股票代碼] - 查詢當日收盤資訊 (可指定日期 ex: /i 2330 20250101)
+- /r [股票代碼] - 查詢月營收圖表
+- /n [股票代碼] - 查詢股票新聞
 
-市場總覽指令
-- /m - 查詢大盤資訊
+📊 市場總覽指令
+- /m - 查詢大盤資訊 (預設5筆)
+- /m [數量] - 查詢指定筆數的大盤資訊
 - /t - 查詢當日交易量前20名
 
-訂閱股票資訊
-- /add [股票代碼] - 訂閱 股票
-- /del [股票代碼] - 取消訂閱 股票
-- /sub 1 - 訂閱 當日個股資訊
-- /sub 2 - 訂閱 觀察清單新聞
-- /sub 3 - 訂閱 當日市場成交行情
-- /sub 4 - 訂閱 當日交易量前20名
-
-查詢指令
+🔔 訂閱管理
+- /add [股票代碼] - 新增訂閱股票
+- /del [股票代碼] - 刪除訂閱股票
+- /sub [項目] - 訂閱功能
+- /unsub [項目] - 取消訂閱功能
 - /list - 查詢已訂閱功能及股票
 
-(取消訂閱 unsub + 代號)`
+範例：
+/k 2330 - 台積電K線圖
+/p 0050 - 元大台灣50績效圖
+/d 2330 2025-09-01 - 查詢台積電指定日期股價
+/r 2330 - 台積電月營收圖表`
 
 	return c.sendMessage(userID, text)
 }
 
-// CommandKline 處理 /k 命令 - K線圖
-func (c *TgCommandHandler) CommandKline(userID int64, symbol, timeRange string) error {
-	// 呼叫業務邏輯
-	imageData, caption, timeRangeText, err := c.tgService.GetStockKlineImage(symbol, timeRange)
-	if err != nil {
-		return c.sendMessage(userID, err.Error())
-	}
-
-	// 發送圖片
-	photo := tgbotapi.NewPhoto(userID, tgbotapi.FileBytes{
-		Name:  "kline.png",
-		Bytes: imageData,
-	})
-	photo.Caption = caption
-
-	_, err = c.botClient.Send(photo)
-	if err != nil {
-		logger.Log.Error("發送圖片失敗", zap.Error(err))
-		return c.sendMessage(userID, fmt.Sprintf("%s %s K線圖", caption, timeRangeText))
-	}
-
-	return nil
-}
-
-// CommandPerformance 處理 /p 命令 - 股票績效
-func (c *TgCommandHandler) CommandPerformance(userID int64, symbol string) error {
-	if symbol == "" {
-		return c.sendMessage(userID, "請輸入股票代號")
-	}
-
-	// 取得績效資料
-	performanceText, err := c.tgService.GetStockPerformance(symbol)
-	if err != nil {
-		return c.sendMessage(userID, err.Error())
-	}
-
-	// 發送HTML格式的表格訊息
-	return c.sendMessageHTML(userID, performanceText)
-}
-
-// CommandPerformanceChart 處理 /pc 命令 - 股票績效圖表 (折線圖)
+// CommandPerformanceChart 處理 /p 命令 - 股票績效圖表 (折線圖)
 func (c *TgCommandHandler) CommandPerformanceChart(userID int64, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -133,28 +82,6 @@ func (c *TgCommandHandler) CommandPerformanceChart(userID int64, symbol string) 
 
 	// 取得績效圖表資料
 	chartData, caption, err := c.tgService.GetStockPerformanceWithChart(symbol, "line")
-	if err != nil {
-		return c.sendMessage(userID, err.Error())
-	}
-
-	// 檢查是否有圖表資料
-	if len(chartData) == 0 {
-		// 如果沒有圖表資料，發送文字版本
-		return c.sendMessageHTML(userID, caption)
-	}
-
-	// 發送圖表
-	return c.sendPhoto(userID, chartData, caption)
-}
-
-// CommandPerformanceBarChart 處理 /pb 命令 - 股票績效圖表 (柱狀圖)
-func (c *TgCommandHandler) CommandPerformanceBarChart(userID int64, symbol string) error {
-	if symbol == "" {
-		return c.sendMessage(userID, "請輸入股票代號")
-	}
-
-	// 取得績效圖表資料
-	chartData, caption, err := c.tgService.GetStockPerformanceWithChart(symbol, "bar")
 	if err != nil {
 		return c.sendMessage(userID, err.Error())
 	}
@@ -199,6 +126,7 @@ func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date str
 	return c.sendMessageHTML(userID, message)
 }
 
+// CommandHistoricalCandles 處理 /k 命令 - 歷史K線圖
 func (c *TgCommandHandler) CommandHistoricalCandles(userID int64, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -227,17 +155,17 @@ func (c *TgCommandHandler) CommandNews(userID int64, symbol string) error {
 	return c.sendMessageWithKeyboard(userID, newsMessage.Text, newsMessage.InlineKeyboardMarkup)
 }
 
-// // CommandDailyMarketInfo 處理 /m 命令 - 大盤資訊
-// func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error {
-// 	// 呼叫業務邏輯
-// 	messageText, err := c.tgService.GetDailyMarketInfo(count)
-// 	if err != nil {
-// 		return c.sendMessage(userID, err.Error())
-// 	}
+// CommandDailyMarketInfo 處理 /m 命令 - 大盤資訊
+func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error {
+	// 呼叫業務邏輯
+	messageText, err := c.tgService.GetDailyMarketInfo(count)
+	if err != nil {
+		return c.sendMessage(userID, err.Error())
+	}
 
-// 	// 發送回應
-// 	return c.sendMessageHTML(userID, messageText)
-// }
+	// 發送回應
+	return c.sendMessageHTML(userID, messageText)
+}
 
 // CommandTopVolumeItems 處理 /t 命令 - 交易量前20名
 func (c *TgCommandHandler) CommandTopVolumeItems(userID int64) error {

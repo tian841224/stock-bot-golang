@@ -3,6 +3,7 @@ package tg
 import (
 	"fmt"
 	fugleDto "stock-bot/internal/infrastructure/fugle/dto"
+	twseDto "stock-bot/internal/infrastructure/twse/dto"
 	"stock-bot/internal/repository"
 	tgDto "stock-bot/internal/service/bot/tg/dto"
 	"stock-bot/internal/service/twstock"
@@ -30,30 +31,13 @@ func NewTgService(
 	}
 }
 
-// GetStockKlineImage 取得股票 K 線圖
-func (s *TgService) GetStockKlineImage(symbol, timeRange string) ([]byte, string, string, error) {
-	if symbol == "" {
-		return nil, "", "", fmt.Errorf("請輸入股票代號")
-	}
-
-	// 驗證股票代號
-	valid, stockName, err := s.stockService.ValidateStockID(symbol)
-	if err != nil || !valid {
-		return nil, "", "", fmt.Errorf("查無此股票代號，請重新確認")
-	}
-
-	// 轉換時間範圍
-	timeRangeText := s.convertTimeRange(timeRange)
-
-	// 取得 K 線圖
-	imageData, _, err := s.stockService.GetStockAnalysis(symbol)
+func (s *TgService) GetDailyMarketInfo(count int) (string, error) {
+	marketInfo, err := s.stockService.GetDailyMarketInfo(count)
 	if err != nil {
-		logger.Log.Error("取得股票分析圖表失敗", zap.Error(err))
-		return nil, "", "", fmt.Errorf("取得 K 線圖失敗，請稍後再試")
+		logger.Log.Error("取得大盤資訊失敗", zap.Error(err))
+		return "", fmt.Errorf("查無資料，請確認後再試")
 	}
-
-	caption := fmt.Sprintf("%s(%s) K線圖　💹", stockName, symbol)
-	return imageData, caption, timeRangeText, nil
+	return s.formatDailyMarketInfoMessage(marketInfo), nil
 }
 
 // GetStockPerformance 取得股票績效
@@ -473,6 +457,41 @@ func (s *TgService) formatPerformanceTable(stockName, symbol string, performance
 	result += "</pre>"
 
 	return result
+}
+
+// formatDailyMarketInfoMessage 格式化大盤資訊訊息
+func (s *TgService) formatDailyMarketInfoMessage(marketInfo twseDto.DailyMarketInfoResponseDto) string {
+	messageText := "<b>台灣股市大盤資訊</b>\n\n"
+
+	// 檢查欄位名稱和資料是否匹配
+	if len(marketInfo.Fields) == 0 {
+		return messageText + "查無資料"
+	}
+
+	for _, row := range marketInfo.Data {
+		if len(row) < 6 {
+			continue // 跳過資料不完整的行
+		}
+
+		// 根據欄位順序解析資料
+		// 通常 TWSE 的欄位順序是: ["日期", "成交股數", "成交金額", "成交筆數", "發行量加權股價指數", "漲跌點數"]
+		date := row[0]
+		volume := row[1]
+		amount := row[2]
+		transaction := row[3]
+		index := row[4]
+		change := row[5]
+
+		messageText += fmt.Sprintf("<b>%s</b>\n", date)
+		messageText += "<code>"
+		messageText += fmt.Sprintf("成交股數：%s\n", volume)
+		messageText += fmt.Sprintf("成交金額：%s\n", amount)
+		messageText += fmt.Sprintf("成交筆數：%s\n", transaction)
+		messageText += fmt.Sprintf("發行量加權股價指數：%s\n", index)
+		messageText += fmt.Sprintf("漲跌點數：%s\n", change)
+		messageText += "</code>\n"
+	}
+	return messageText
 }
 
 // formatStockInfoMessage 格式化股票詳細資訊訊息
