@@ -64,6 +64,15 @@ func main() {
 	userService := user.NewUserService(userRepo)
 	stockService := twstockService.NewStockService(finmindClient, twseAPI, cnyesAPI, fugleAPI, symbolsRepo)
 
+	// 設定 Gin 模式（根據環境變數自動設定）
+	// 在 Docker 環境中，GIN_MODE 環境變數會自動設定為 release
+	ginMode := os.Getenv("GIN_MODE")
+	if ginMode == "" {
+		ginMode = "debug" // 預設為 debug 模式（開發環境）
+	}
+	gin.SetMode(ginMode)
+	logger.Log.Info("Gin 模式設定", zap.String("mode", ginMode))
+
 	// 建立 Gin 引擎與註冊路由
 	router := gin.Default()
 
