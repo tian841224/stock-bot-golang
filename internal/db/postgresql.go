@@ -81,7 +81,7 @@ func createOrUpdateTable() error {
 
 // createDatabaseIfNotExists 檢查並建立資料庫
 func createDatabaseIfNotExists(cfg *config.Config) error {
-	sqlDB, err := sql.Open("postgres", fmt.Sprintf("host=%s user=%s password=%s dbname=postgres port=%s sslmode=disable", cfg.DB_HOST, cfg.DB_USER, cfg.DB_PASSWORD, cfg.DB_PORT))
+	sqlDB, err := sql.Open("postgres", fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", cfg.DB_HOST, cfg.DB_USER, cfg.DB_PASSWORD, cfg.DB_NAME, cfg.DB_PORT))
 	if err != nil {
 		return err
 	}
