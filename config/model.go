@@ -3,7 +3,7 @@ package config
 type Config struct {
 	// Database
 	DB_HOST     string `mapstructure:"DB_HOST"`
-	DB_PORT     string `mapstructure:"DB_PORT"`
+	DB_PORT     int    `mapstructure:"DB_PORT"`
 	DB_USER     string `mapstructure:"DB_USER"`
 	DB_PASSWORD string `mapstructure:"DB_PASSWORD"`
 	DB_NAME     string `mapstructure:"DB_NAME"`

@@ -47,10 +47,7 @@ vendor/
 
 # 環境變數檔案（包含敏感資訊）
 .env
-.env.local
-.env.development
-.env.test
-.env.production
+.env.*
 
 # Docker 相關
 Dockerfile

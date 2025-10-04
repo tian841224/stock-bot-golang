@@ -70,6 +70,7 @@ services:
     volumes:
       - ./logs:/root/logs:rw
       - ./:/app
+      - ./.env:/root/.env
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
       interval: 30s
@@ -109,7 +110,7 @@ services:
     volumes:
       - ./logs:/root/logs:rw
       - ./:/app
-
+      - ./.env:/root/.env
 networks:
   stock-bot-network:
     driver: bridge

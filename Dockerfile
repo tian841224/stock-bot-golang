@@ -38,9 +38,6 @@ WORKDIR /root/
 # 從建置階段複製執行檔
 COPY --from=builder /app/main .
 
-# 環境變數透過 Docker Compose 或執行時參數傳入
-# 不複製 .env 檔案到映像檔中，確保安全性
-
 # 變更檔案擁有者
 RUN chown -R appuser:appgroup /root/
 
