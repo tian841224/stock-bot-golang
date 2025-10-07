@@ -19,10 +19,10 @@ services:
       start_period: 30s
 
   # Stock Bot 應用程式
-  stock-bot:
+  stock-bot-go:
     build:
       context: .
-      dockerfile: Dockerfile
+    image: ${DOCKER_HUB_USERNAME}/stock-bot-go:latest
     restart: unless-stopped
     env_file:
       - .env
@@ -71,10 +71,10 @@ services:
       start_period: 30s
 
   # Stock Data Sync Service
-  sync-stock-info:
+  sync-stock-info-go:
     build:
       context: .
-      dockerfile: Dockerfile.sync
+    image: ${DOCKER_HUB_USERNAME}/stock-bot-sync:latest
     restart: unless-stopped
     env_file:
       - .env
