@@ -36,7 +36,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-password}
       DB_NAME: ${DB_NAME:-stock-bot-go}
       DB_LOG: ${DB_LOG:-false}
-      
+      DOCKER_DB_PORT: ${DOCKER_DB_PORT:-5432}
       # LINE Bot 設定
       CHANNEL_ACCESS_TOKEN: ${CHANNEL_ACCESS_TOKEN}
       CHANNEL_SECRET: ${CHANNEL_SECRET}
@@ -88,7 +88,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-password}
       DB_NAME: ${DB_NAME:-stock-bot-go}
       DB_LOG: ${DB_LOG:-false}
-      
+      DOCKER_DB_PORT: ${DOCKER_DB_PORT:-5432}
       # API Keys
       FINMIND_TOKEN: ${FINMIND_TOKEN}
       
