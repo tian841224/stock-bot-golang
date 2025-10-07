@@ -3,21 +3,18 @@ version: '3.8'
 services:
   # PostgreSQL 資料庫
   postgres:
-    image: postgres:15-alpine
-    container_name: stock-bot-postgres
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-stock_bot}
+      POSTGRES_DB: ${DB_NAME:-stock-bot-go}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - stock-bot-go-db:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT:-5432}:5432"
-    networks:
-      - stock-bot-network
+      - ${DOCKER_DB_PORT:-5432}:5432
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-stock_bot}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-stock-bot-go}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -28,17 +25,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: stock-bot-app
     restart: unless-stopped
     env_file:
       - .env
     environment:
       # 資料庫設定
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: ${DB_PORT:-5432}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-password}
-      DB_NAME: ${DB_NAME:-stock_bot}
+      DB_NAME: ${DB_NAME:-stock-bot-go}
       DB_LOG: ${DB_LOG:-false}
       
       # LINE Bot 設定
@@ -65,11 +61,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - stock-bot-network
     volumes:
       - ./logs:/root/logs:rw
       - ./:/app
+      - ./.env:/root/.env
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
       interval: 30s
@@ -82,17 +77,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.sync
-    container_name: stock-bot-sync
     restart: unless-stopped
     env_file:
       - .env
     environment:
       # 資料庫設定
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: ${DB_PORT:-5432}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-password}
-      DB_NAME: ${DB_NAME:-stock_bot}
+      DB_NAME: ${DB_NAME:-stock-bot-go}
       DB_LOG: ${DB_LOG:-false}
       
       # API Keys
@@ -104,16 +98,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - stock-bot-network
     volumes:
       - ./logs:/root/logs:rw
       - ./:/app
-
-networks:
-  stock-bot-network:
-    driver: bridge
+      - ./.env:/root/.env
 
 volumes:
-  postgres_data:
+  stock-bot-go-db:
     driver: local
