@@ -141,13 +141,15 @@ jobs:
             echo "建立 .env 檔案..."
             cat > ${ENV_FILE} << EOL
             # 資料庫設定
+            DOCKER_HUB_USERNAME='${{ secrets.DOCKER_HUB_USERNAME }}'
             DB_HOST=${{ secrets.DB_HOST }}
             DB_PORT=${{ secrets.DB_PORT }}
             DB_USER='${{ secrets.DB_USER }}'
             DB_PASSWORD='${{ secrets.DB_PASSWORD }}'
             DB_NAME='${{ secrets.DB_NAME }}'
             DB_LOG=${{ secrets.DB_LOG }}
-            
+            DOCKER_DB_PORT=${{ secrets.DOCKER_DB_PORT }}
+
             # LINE Bot 設定
             CHANNEL_ACCESS_TOKEN='${{ secrets.CHANNEL_ACCESS_TOKEN }}'
             CHANNEL_SECRET='${{ secrets.CHANNEL_SECRET }}'
