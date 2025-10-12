@@ -3,7 +3,8 @@ name: Deploy Stock Bot to EC2
 on:
   push:
     branches:
-      - feature/建立CICD
+      - master
+      - main
   pull_request:
     branches:
       - master
