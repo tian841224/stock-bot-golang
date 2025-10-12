@@ -797,7 +797,7 @@ func (s *StockService) GetStockRevenueChart(stockID string) ([]byte, error) {
 	chartData := s.convertToChartData(revenueData)
 
 	// 產生圖表
-	chartBytes, err := imageutil.GenerateRevenueChartPNG(chartData, revenueData.Name)
+	chartBytes, err := imageutil.GenerateRevenueChartPNG(chartData, revenueData.Name, stockID)
 	if err != nil {
 		return nil, fmt.Errorf("產生營收圖表失敗: %v", err)
 	}

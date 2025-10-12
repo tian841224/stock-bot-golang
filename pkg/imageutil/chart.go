@@ -455,7 +455,7 @@ func GeneratePerformanceLineChart(data []PerformanceData, title string) ([]byte,
 }
 
 // 生成營收圖表 (柱狀圖+折線圖組合)
-func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte, error) {
+func GenerateRevenueChartPNG(data []RevenueChartData, stockName string, stockCode string) ([]byte, error) {
 
 	if len(data) == 0 {
 		return nil, fmt.Errorf("無營收資料可生成圖表")
@@ -467,7 +467,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 
 	// 圖表設定
 	config := ChartConfig{
-		Title:      fmt.Sprintf("%s 月營收", stockName),
+		Title:      fmt.Sprintf("%s (%s) 月營收", stockName, stockCode),
 		Width:      1600, // 增加寬度以容納更多資訊
 		Height:     800,  // 增加高度
 		ShowGrid:   true,
@@ -544,8 +544,14 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	// 在右上角顯示最新數據
 	latestData := data[len(data)-1]
 	c.SetFontSize(16) // 增加資訊字型大小
+
+	// 顯示股票代碼和名稱
+	stockInfoText := fmt.Sprintf("%s (%s)", stockName, stockCode)
+	pt := freetype.Pt(config.Width-300, 30)
+	c.DrawString(stockInfoText, pt)
+
 	infoText := fmt.Sprintf("%s 營收: %.0f億", latestData.PeriodName, float64(latestData.LatestRevenue)/100000)
-	pt := freetype.Pt(config.Width-300, 60)
+	pt = freetype.Pt(config.Width-300, 60)
 	c.DrawString(infoText, pt)
 
 	yoyText := fmt.Sprintf("YoY: %.2f%%", latestData.LatestYoY)
