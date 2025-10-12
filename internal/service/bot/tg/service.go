@@ -105,10 +105,13 @@ func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
 
 	for _, item := range topItems {
 		emoji := ""
-		if item.UpDownSign == "+" {
+		switch item.UpDownSign {
+		case "+":
 			emoji = "📈"
-		} else if item.UpDownSign == "-" {
+		case "-":
 			emoji = "📉"
+		default:
+			emoji = ""
 		}
 
 		messageText += fmt.Sprintf("%s<b>%s (%s)</b>\n<code>", emoji, item.StockName, item.StockID)
@@ -144,10 +147,13 @@ func (s *TgService) GetStockPriceByDate(symbol, date string) (string, error) {
 	}
 
 	emoji := ""
-	if stockInfo.UpDownSign == "+" {
+	switch stockInfo.UpDownSign {
+	case "+":
 		emoji = "📈"
-	} else if stockInfo.UpDownSign == "-" {
+	case "-":
 		emoji = "📉"
+	default:
+		emoji = ""
 	}
 
 	message := fmt.Sprintf(`<b>%s</b>

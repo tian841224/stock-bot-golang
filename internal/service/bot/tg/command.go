@@ -372,20 +372,6 @@ func (c *TgCommandHandler) sendMessageHTML(chatID int64, text string) error {
 	return err
 }
 
-func (c *TgCommandHandler) sendDocument(chatID int64, data []byte, filename, caption string) error {
-	doc := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{
-		Name:  filename,
-		Bytes: data,
-	})
-	doc.Caption = caption
-	doc.ParseMode = tgbotapi.ModeHTML
-	_, err := c.botClient.Send(doc)
-	if err != nil {
-		logger.Log.Error("發送文件失敗", zap.Error(err))
-	}
-	return err
-}
-
 func (c *TgCommandHandler) sendPhoto(chatID int64, data []byte, caption string) error {
 	photo := tgbotapi.NewPhoto(chatID, tgbotapi.FileBytes{
 		Name:  "chart.png",
