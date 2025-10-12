@@ -9,6 +9,7 @@ import (
 	"stock-bot/internal/service/twstock"
 	stockDto "stock-bot/internal/service/twstock/dto"
 	"stock-bot/pkg/logger"
+	"strconv"
 	"strings"
 	"time"
 
@@ -441,27 +442,34 @@ func (s *TgService) formatNumber(num int64) string {
 	return result
 }
 
-// formatPerformanceTable 格式化股票績效為HTML表格
+// formatPerformanceTable 格式化股票績效為手機友善的格式
 func (s *TgService) formatPerformanceTable(stockName, symbol string, performanceData *stockDto.StockPerformanceResponseDto) string {
 
-	// 使用 <pre> 標籤來保持格式對齊，並加上邊框效果
 	result := "<pre>"
-	result += fmt.Sprintf("<b>%s(%s) 績效表現 ✨</b>", stockName, symbol)
-	result += "┌─────────┬─────────────┐\n"
-	result += "│ Period  │ Performance │\n"
-	result += "├─────────┼─────────────┤\n"
+	// 使用手機友善的格式，避免複雜表格
+	result += fmt.Sprintf("📊 <b>%s (%s) 績效表現</b>\n\n", stockName, symbol)
 
-	// 加入每行資料
+	// 為每個績效期間添加表情符號和格式化
 	for _, data := range performanceData.Data {
-		// 確保中文字元對齊，使用固定寬度格式
-		periodFormatted := fmt.Sprintf("%-7s", data.Period)
-		performanceFormatted := fmt.Sprintf("%-11s", data.Performance)
-		result += fmt.Sprintf("│ %s │ %s │\n", periodFormatted, performanceFormatted)
+		// 解析績效數值來決定表情符號
+		performanceStr := strings.TrimSuffix(data.Performance, "%")
+		performance, err := strconv.ParseFloat(performanceStr, 64)
+		var emoji string
+		if err == nil {
+			if performance >= 0 {
+				emoji = "📈" // 上升用📈
+			} else {
+				emoji = "📉" // 下降用📉
+			}
+		} else {
+			emoji = "📊" // 無法解析用📊
+		}
+
+		// 格式化顯示
+		result += fmt.Sprintf("%s <b>%s</b>: %s\n", emoji, data.Period, data.Performance)
 	}
 
-	result += "└─────────┴─────────────┘"
 	result += "</pre>"
-
 	return result
 }
 
