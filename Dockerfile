@@ -22,19 +22,18 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/bot
 # 使用輕量級的 Alpine 映像作為執行階段
 FROM alpine:latest
 
-# 安裝 ca-certificates、tzdata 和中文字型套件
+# 安裝 ca-certificates、tzdata 和下載工具
 RUN apk --no-cache add \
     ca-certificates \
     tzdata \
-    font-noto-cjk \
-    font-noto-emoji \
     fontconfig \
-    ttf-freefont \
-    && fc-cache -f -v
+    wget
 
-# 建立字型快取目錄並設定權限
-RUN mkdir -p /usr/share/fonts \
-    && chmod 755 /usr/share/fonts \
+# 下載繁體中文字型 (Variable Font TTF 格式)
+RUN mkdir -p /usr/share/fonts/custom \
+    && cd /usr/share/fonts/custom \
+    && wget -O NotoSansTC-VariableFont.ttf \
+       "https://github.com/google/fonts/raw/main/ofl/notosanstc/NotoSansTC%5Bwght%5D.ttf" \
     && fc-cache -f -v
 
 # 設定時區為台北時間
