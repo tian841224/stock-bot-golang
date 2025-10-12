@@ -3,7 +3,7 @@ name: Deploy Stock Bot to EC2
 on:
   push:
     branches:
-      - feature/修正無法顯示中文錯誤
+      - develop
   pull_request:
     branches:
       - master
