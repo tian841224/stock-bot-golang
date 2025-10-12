@@ -179,7 +179,6 @@ type ChartConfig struct {
 	Height     int
 	ShowGrid   bool
 	ShowLegend bool
-	ChartType  string // "line" 或 "bar"
 }
 
 // DefaultChartConfig 預設圖表設定
@@ -190,7 +189,6 @@ func DefaultChartConfig() ChartConfig {
 		Height:     800,  // 增加高度
 		ShowGrid:   true,
 		ShowLegend: true,
-		ChartType:  "line",
 	}
 }
 
@@ -224,8 +222,7 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	c.SetFontSize(14)
 	c.SetClip(img.Bounds())
 	c.SetDst(img)
-	c.SetSrc(image.NewUniform(colors.TextDarkGray)) // 更深的灰色文字
-
+	c.SetSrc(image.NewUniform(colors.TextDarkGray))
 	// 解析績效資料
 	values := make([]float64, len(data))
 	for i, item := range data {
@@ -349,123 +346,88 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 		}
 	}
 
-	if config.ChartType == "bar" {
-		// 垂直柱狀圖（X軸=時間，Y軸=績效）
-		barWidth := chartWidth / len(data) * 8 / 10 // 80% 寬度
-		barSpacing := chartWidth / len(data)
+	// 折線圖（X軸=時間，Y軸=績效）
+	lineColor := colors.NegativeRed // 深一點的粉紅色
 
-		// 計算零點位置
-		zeroY := chartTop + chartHeight - int((0-minVal)/(maxVal-minVal)*float64(chartHeight))
-
-		for i := range data {
-			value := values[i]
-
-			// 計算柱狀圖位置
-			x := chartLeft + (barSpacing * i) + (barSpacing-barWidth)/2
-
-			// 根據正負值選擇顏色和位置
-			barColor := colors.PositiveGreen // 深一點的薄荷綠 (正值)
-			var y, barHeight int
-
-			if value >= 0 {
-				// 正值：從零點往上畫
-				barHeight = int((value - 0) / (maxVal - minVal) * float64(chartHeight))
-				y = zeroY - barHeight
-			} else {
-				// 負值：從零點往下畫
-				barColor = colors.NegativeRed // 深一點的粉紅色 (負值)
-				barHeight = int((0 - value) / (maxVal - minVal) * float64(chartHeight))
-				y = zeroY
-			}
-
-			// 繪製垂直柱狀圖
-			if barHeight > 0 {
-				drawRect(img, x, y, barWidth, barHeight, barColor)
-			}
+	// 找出最高績效和最低績效的索引
+	var maxIndex, minIndex int
+	maxValue := values[0]
+	minValue := values[0]
+	for i, value := range values {
+		if value > maxValue {
+			maxValue = value
+			maxIndex = i
 		}
-
-	} else {
-		// 折線圖（X軸=時間，Y軸=績效）
-		lineColor := colors.NegativeRed // 深一點的粉紅色
-
-		// 找出最高績效和最低績效的索引
-		var maxIndex, minIndex int
-		maxValue := values[0]
-		minValue := values[0]
-		for i, value := range values {
-			if value > maxValue {
-				maxValue = value
-				maxIndex = i
-			}
-			if value < minValue {
-				minValue = value
-				minIndex = i
-			}
-		}
-
-		// 繪製折線（只有連接線，不顯示資料點）
-		for i := range data {
-			value := values[i]
-			x := chartLeft + (chartWidth * i / (len(data) - 1))
-			y := chartTop + chartHeight - int((value-minVal)/(maxVal-minVal)*float64(chartHeight))
-
-			// 繪製線段 (除了第一個點)
-			if i > 0 {
-				prevValue := values[i-1]
-				prevX := chartLeft + (chartWidth * (i - 1) / (len(data) - 1))
-				prevY := chartTop + chartHeight - int((prevValue-minVal)/(maxVal-minVal)*float64(chartHeight))
-				drawThickLine(img, prevX, prevY, x, y, 3, lineColor) // 使用3像素粗線
-			}
-		}
-
-		// 標示最高績效
-		if len(values) > 0 {
-			maxX := chartLeft + (chartWidth * maxIndex / (len(data) - 1))
-			maxY := chartTop + chartHeight - int((maxValue-minVal)/(maxVal-minVal)*float64(chartHeight))
-
-			c.SetFontSize(16)
-			c.SetSrc(image.NewUniform(colors.NegativeRed)) // 深粉紅色
-			maxLabel := fmt.Sprintf("最高: %.2f%%", maxValue)
-			c.DrawString(maxLabel, freetype.Pt(maxX-30, maxY-35)) // 調整位置避免與數值重疊
-
-			// 繪製指向最高點的小圓圈
-			drawCircle(img, maxX, maxY, 4, colors.NegativeRed)
-		}
-
-		// 標示最低績效
-		if len(values) > 0 {
-			minX := chartLeft + (chartWidth * minIndex / (len(data) - 1))
-			minY := chartTop + chartHeight - int((minValue-minVal)/(maxVal-minVal)*float64(chartHeight))
-
-			c.SetFontSize(16)
-			c.SetSrc(image.NewUniform(colors.PositiveGreen)) // 深薄荷綠
-			minLabel := fmt.Sprintf("最低: %.2f%%", minValue)
-			c.DrawString(minLabel, freetype.Pt(minX-30, minY+35)) // 調整位置避免與數值重疊
-
-			// 繪製指向最低點的小圓圈
-			drawCircle(img, minX, minY, 4, colors.PositiveGreen)
-
-			// 重設字型顏色
-			c.SetSrc(image.NewUniform(colors.TextBlack))
-			c.SetFontSize(14)
-		}
-
-		// 零線 (如果有負值) - 水平線
-		hasNegative := false
-		for _, v := range values {
-			if v < 0 {
-				hasNegative = true
-				break
-			}
-		}
-
-		if hasNegative {
-			zeroY := chartTop + chartHeight - int((0-minVal)/(maxVal-minVal)*float64(chartHeight))
-			drawDashedLine(img, chartLeft, zeroY, chartLeft+chartWidth, zeroY, colors.GridDashedGray)
+		if value < minValue {
+			minValue = value
+			minIndex = i
 		}
 	}
 
-	// X軸標籤 - 與日期文字對齊，往右移更多
+	// 繪製折線（只有連接線，不顯示資料點）
+	for i := range data {
+		value := values[i]
+		x := chartLeft + (chartWidth * i / (len(data) - 1))
+		y := chartTop + chartHeight - int((value-minVal)/(maxVal-minVal)*float64(chartHeight))
+
+		// 繪製線段 (除了第一個點)
+		if i > 0 {
+			prevValue := values[i-1]
+			prevX := chartLeft + (chartWidth * (i - 1) / (len(data) - 1))
+			prevY := chartTop + chartHeight - int((prevValue-minVal)/(maxVal-minVal)*float64(chartHeight))
+			drawThickLine(img, prevX, prevY, x, y, 3, lineColor) // 使用3像素粗線
+		}
+	}
+
+	// 標示最高績效
+	if len(values) > 0 {
+		maxX := chartLeft + (chartWidth * maxIndex / (len(data) - 1))
+		maxY := chartTop + chartHeight - int((maxValue-minVal)/(maxVal-minVal)*float64(chartHeight))
+
+		c.SetFontSize(16)
+		c.SetSrc(image.NewUniform(colors.NegativeRed)) // 深粉紅色
+		maxLabel := fmt.Sprintf("最高: %.2f%%", maxValue)
+		c.DrawString(maxLabel, freetype.Pt(maxX-30, maxY-35)) // 調整位置避免與數值重疊
+
+		// 繪製指向最高點的小圓圈
+		drawCircle(img, maxX, maxY, 4, colors.NegativeRed)
+	}
+
+	// 標示最低績效
+	if len(values) > 0 {
+		minX := chartLeft + (chartWidth * minIndex / (len(data) - 1))
+		minY := chartTop + chartHeight - int((minValue-minVal)/(maxVal-minVal)*float64(chartHeight))
+
+		c.SetFontSize(16)
+		c.SetSrc(image.NewUniform(colors.PositiveGreen)) // 深薄荷綠
+		minLabel := fmt.Sprintf("最低: %.2f%%", minValue)
+		c.DrawString(minLabel, freetype.Pt(minX-30, minY+35)) // 調整位置避免與數值重疊
+
+		// 繪製指向最低點的小圓圈
+		drawCircle(img, minX, minY, 4, colors.PositiveGreen)
+
+		// 重設字型顏色
+		c.SetSrc(image.NewUniform(colors.TextBlack))
+		c.SetFontSize(14)
+	}
+
+	// 零線 (如果有負值) - 水平線
+	hasNegative := false
+	for _, v := range values {
+		if v < 0 {
+			hasNegative = true
+			break
+		}
+	}
+
+	if hasNegative {
+		zeroY := chartTop + chartHeight - int((0-minVal)/(maxVal-minVal)*float64(chartHeight))
+		drawDashedLine(img, chartLeft, zeroY, chartLeft+chartWidth, zeroY, colors.GridDashedGray)
+	}
+
+	// X軸標籤 - 顯示在圖表最右側，與日期文字同一水平線
+	c.SetFontSize(14) // 使用與日期文字相同的字型大小
+	c.SetSrc(image.NewUniform(colors.TextBlack))
 	ptX := freetype.Pt(chartLeft+chartWidth+50, chartTop+chartHeight+25)
 	c.DrawString("Time", ptX)
 
@@ -473,7 +435,9 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	pt2 := freetype.Pt(chartLeft-50, chartTop-10)
 	c.DrawString("Performance (%)", pt2)
 
-	// 右側標籤 - 累計績效，與績效數值對齊，往右移更多
+	// 右側標籤 - 累計績效，與績效數值同一水平線
+	c.SetFontSize(12) // 使用與績效數值相同的字型大小
+	c.SetSrc(image.NewUniform(colors.TextBlack))
 	pt3 := freetype.Pt(chartLeft+chartWidth+50, chartTop+chartHeight+45)
 	c.DrawString("累計績效", pt3)
 
@@ -491,7 +455,6 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 func GeneratePerformanceLineChart(data []PerformanceData, title string) ([]byte, error) {
 	config := DefaultChartConfig()
 	config.Title = title
-	config.ChartType = "line"
 	return GeneratePerformanceChartPNG(data, config)
 }
 
@@ -509,8 +472,8 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	// 圖表設定
 	config := ChartConfig{
 		Title:      fmt.Sprintf("%s 月營收", stockName),
-		Width:      1400, // 增加寬度以容納更多資訊
-		Height:     700,  // 增加高度
+		Width:      1600, // 增加寬度以容納更多資訊
+		Height:     800,  // 增加高度
 		ShowGrid:   true,
 		ShowLegend: true,
 	}
@@ -519,7 +482,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	img := image.NewRGBA(image.Rect(0, 0, config.Width, config.Height))
 
 	// 填充淺灰色背景
-	draw.Draw(img, img.Bounds(), &image.Uniform{colors.BackgroundLightGray}, image.Point{}, draw.Src) // 淺灰色背景
+	draw.Draw(img, img.Bounds(), &image.Uniform{colors.BackgroundLightGray}, image.Point{}, draw.Src)
 
 	// 載入字型 - 使用 go-findfont 動態查找支援中文的字型
 	ttf, err := loadChineseFont()
@@ -531,10 +494,10 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	c := freetype.NewContext()
 	c.SetDPI(72)
 	c.SetFont(ttf)
-	c.SetFontSize(16) // 增加基礎字型大小
+	c.SetFontSize(16)
 	c.SetClip(img.Bounds())
 	c.SetDst(img)
-	c.SetSrc(image.NewUniform(colors.TextDarkGray)) // 更深的灰色文字
+	c.SetSrc(image.NewUniform(colors.TextDarkGray))
 
 	// 計算營收和年增率的範圍
 	minRevenue := data[0].Revenue
@@ -558,9 +521,9 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	}
 
 	// 營收範圍調整
-	revenueMargin := (maxRevenue - minRevenue) * 1 / 10
+	revenueMargin := (maxRevenue - minRevenue) * 1 / 5
 	if revenueMargin == 0 {
-		revenueMargin = maxRevenue / 10
+		revenueMargin = maxRevenue / 5
 	}
 	minRevenue = 0 // 營收從0開始顯示
 	maxRevenue += revenueMargin
@@ -576,8 +539,8 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	// 圖表區域
 	chartLeft := 120
 	chartTop := 120
-	chartWidth := config.Width - 240   // 左右各留空間
-	chartHeight := config.Height - 250 // 上下各留空間
+	chartWidth := config.Width - 340
+	chartHeight := config.Height - 250
 
 	// 繪製標題
 	titleConfig.DrawTitle(c, config.Width, config.Height, config.Title)
@@ -615,7 +578,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 
 			// 水平格線
 			if i > 0 && i < yGridLines {
-				drawLine(img, chartLeft, y, chartLeft+chartWidth, y, colors.GridMintGreen) // 使用薄荷綠半透明格線
+				drawLine(img, chartLeft, y, chartLeft+chartWidth, y, colors.TextBlack) // 使用黑色格線
 			}
 
 			// 左側Y軸標籤 (營收，單位：億)
@@ -646,7 +609,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 
 			// 垂直格線
 			if i > 0 && i < len(data)-1 && i%labelStep == 0 {
-				drawLine(img, x, chartTop, x, chartTop+chartHeight, colors.GridMintGreen) // 使用薄荷綠半透明格線
+				drawLine(img, x, chartTop, x, chartTop+chartHeight, colors.TextBlack) // 使用黑色格線
 			}
 
 			// X軸標籤
@@ -697,7 +660,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	}
 
 	// 繪製折線圖（年增率）
-	lineColor := colors.NegativeRed // 深一點的粉紅色
+	lineColor := colors.NegativeRed
 
 	for i := range data {
 		value := data[i].YoY
@@ -722,7 +685,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 		// 設定字型來顯示數值
 		c.SetFontSize(16) // 增加年增率字型大小
 		// YoY數字統一使用紅色
-		c.SetSrc(image.NewUniform(colors.TextRed)) // 紅色
+		c.SetSrc(image.NewUniform(colors.TextRed))
 		pt := freetype.Pt(textX, textY)
 		c.DrawString(yoyText, pt)
 		c.SetSrc(image.NewUniform(colors.TextBlack)) // 重設為黑色
@@ -759,15 +722,15 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	}
 
 	// X軸標籤 - 移到X軸右端，避免與時間標籤重疊
-	ptX := freetype.Pt(chartLeft+chartWidth+10, chartTop+chartHeight+40)
-	c.DrawString("時間", ptX)
+	ptX := freetype.Pt(chartLeft+chartWidth+80, chartTop+chartHeight+25)
+	c.DrawString("Time", ptX)
 
 	// 左側Y軸標籤 - 移到Y軸上端
 	pt1 := freetype.Pt(chartLeft-50, chartTop-10)
 	c.DrawString("營收 (億)", pt1)
 
 	// 右側Y軸標籤 - 移到右側Y軸上端
-	pt2 := freetype.Pt(chartLeft+chartWidth+10, chartTop-10)
+	pt2 := freetype.Pt(chartLeft+chartWidth+50, chartTop-10)
 	c.DrawString("YoY (%)", pt2)
 
 	// 將圖片編碼為 PNG
