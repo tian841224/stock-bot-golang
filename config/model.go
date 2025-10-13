@@ -21,4 +21,6 @@ type Config struct {
 	FINMIND_TOKEN string `mapstructure:"FINMIND_TOKEN"`
 	// Fugle
 	FUGLE_API_KEY string `mapstructure:"FUGLE_API_KEY"`
+	// Imgbb
+	IMGBB_API_KEY string `mapstructure:"IMGBB_API_KEY"`
 }

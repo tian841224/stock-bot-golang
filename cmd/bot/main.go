@@ -16,6 +16,7 @@ import (
 	cnyesInfra "stock-bot/internal/infrastructure/cnyes"
 	"stock-bot/internal/infrastructure/finmindtrade"
 	fugleInfra "stock-bot/internal/infrastructure/fugle"
+	"stock-bot/internal/infrastructure/imgbb"
 	linebotInfra "stock-bot/internal/infrastructure/linebot"
 	tgbotInfra "stock-bot/internal/infrastructure/tgbot"
 	twseInfra "stock-bot/internal/infrastructure/twse"
@@ -60,6 +61,15 @@ func main() {
 	twseAPI := twseInfra.NewTwseAPI()
 	cnyesAPI := cnyesInfra.NewCnyesAPI()
 
+	// 初始化 ImgBB 客戶端
+	var imgbbClient *imgbb.ImgBBClient
+	if cfg.IMGBB_API_KEY != "" {
+		imgbbClient = imgbb.NewImgBBClient(cfg.IMGBB_API_KEY)
+		logger.Log.Info("ImgBB 客戶端初始化成功")
+	} else {
+		logger.Log.Warn("IMGBB_API_KEY 未設定，圖片上傳功能將不可用")
+	}
+
 	// 初始化服務
 	userService := user.NewUserService(userRepo)
 	stockService := twstockService.NewStockService(finmindClient, twseAPI, cnyesAPI, fugleAPI, symbolsRepo)
@@ -89,7 +99,7 @@ func main() {
 
 	// 建立 LINE Bot 服務層
 	lineSvc := lineService.NewLineService(stockService, userSubscriptionRepo)
-	lineCommandHandler := lineService.NewLineCommandHandler(botClient.Client, lineSvc, userService, userSubscriptionRepo)
+	lineCommandHandler := lineService.NewLineCommandHandler(botClient.Client, lineSvc, userService, userSubscriptionRepo, imgbbClient)
 	service := lineService.NewBotService(botClient, lineCommandHandler, userService)
 	handler := linebot.NewLineBotHandler(service, botClient)
 	linebot.RegisterRoutes(router, handler)
