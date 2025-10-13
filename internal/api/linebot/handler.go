@@ -39,11 +39,16 @@ func (h *LineBotHandler) Webhook(c *gin.Context) {
 			case *linebot.TextMessage:
 				if err := h.service.HandleTextMessage(event, message); err != nil {
 					logger.Log.Error("Failed to handle text message", zap.Error(err))
-					c.JSON(500, gin.H{"error": err.Error()})
-					return
+					// 即使處理失敗，也要回覆 LINE 平台，避免重複發送
+					// 使用 ReplyMessage 回覆錯誤訊息給使用者
+					if replyErr := h.botClient.ReplyMessage(event.ReplyToken, "處理訊息時發生錯誤，請稍後再試"); replyErr != nil {
+						logger.Log.Error("Failed to send error reply", zap.Error(replyErr))
+					}
 				}
 			}
 		}
 	}
-	c.Status(200)
+
+	// 確保回傳 200 狀態碼，告訴 LINE 平台事件已成功處理
+	c.JSON(200, gin.H{"status": "success"})
 }

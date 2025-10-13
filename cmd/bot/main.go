@@ -99,7 +99,7 @@ func main() {
 
 	// 建立 LINE Bot 服務層
 	lineSvc := lineService.NewLineService(stockService, userSubscriptionRepo)
-	lineCommandHandler := lineService.NewLineCommandHandler(botClient.Client, lineSvc, userService, userSubscriptionRepo, imgbbClient)
+	lineCommandHandler := lineService.NewLineCommandHandler(botClient, lineSvc, userService, userSubscriptionRepo, imgbbClient)
 	service := lineService.NewBotService(botClient, lineCommandHandler, userService)
 	handler := linebot.NewLineBotHandler(service, botClient)
 	linebot.RegisterRoutes(router, handler)
