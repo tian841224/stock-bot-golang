@@ -154,6 +154,7 @@ jobs:
             # LINE Bot 設定
             CHANNEL_ACCESS_TOKEN='${{ secrets.CHANNEL_ACCESS_TOKEN }}'
             CHANNEL_SECRET='${{ secrets.CHANNEL_SECRET }}'
+            LINE_BOT_WEBHOOK_PATH='${{ secrets.LINE_BOT_WEBHOOK_PATH }}'
             
             # Telegram Bot 設定
             TELEGRAM_ADMIN_CHAT_ID='${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}'
