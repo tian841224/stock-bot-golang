@@ -165,6 +165,7 @@ jobs:
             # API Keys
             FINMIND_TOKEN='${{ secrets.FINMIND_TOKEN }}'
             FUGLE_API_KEY='${{ secrets.FUGLE_API_KEY }}'
+            IMGBB_API_KEY='${{ secrets.IMGBB_API_KEY }}'
             
             # 應用程式設定
             APP_PORT=8080
