@@ -102,7 +102,7 @@ func main() {
 	lineCommandHandler := lineService.NewLineCommandHandler(botClient, lineSvc, userService, userSubscriptionRepo, imgbbClient)
 	service := lineService.NewBotService(botClient, lineCommandHandler, userService)
 	handler := linebot.NewLineBotHandler(service, botClient)
-	linebot.RegisterRoutes(router, handler)
+	linebot.RegisterRoutes(router, handler, cfg.LINE_BOT_WEBHOOK_PATH)
 
 	// 初始化 Telegram Bot 並註冊路由
 	tgClient, err := tgbotInfra.NewBot(*cfg)

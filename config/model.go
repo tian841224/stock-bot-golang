@@ -9,8 +9,9 @@ type Config struct {
 	DB_NAME     string `mapstructure:"DB_NAME"`
 	DB_LOG_MODE bool   `mapstructure:"DB_LOG"`
 	// Line Bot
-	CHANNEL_ACCESS_TOKEN string `mapstructure:"CHANNEL_ACCESS_TOKEN"`
-	CHANNEL_SECRET       string `mapstructure:"CHANNEL_SECRET"`
+	CHANNEL_ACCESS_TOKEN  string `mapstructure:"CHANNEL_ACCESS_TOKEN"`
+	CHANNEL_SECRET        string `mapstructure:"CHANNEL_SECRET"`
+	LINE_BOT_WEBHOOK_PATH string `mapstructure:"LINE_BOT_WEBHOOK_PATH"`
 	// Telegram Bot
 	TELEGRAM_ADMIN_CHAT_ID      string `mapstructure:"TELEGRAM_ADMIN_CHAT_ID"`
 	TELEGRAM_BOT_TOKEN          string `mapstructure:"TELEGRAM_BOT_TOKEN"`

@@ -39,6 +39,7 @@ services:
       # LINE Bot 設定
       CHANNEL_ACCESS_TOKEN: ${CHANNEL_ACCESS_TOKEN}
       CHANNEL_SECRET: ${CHANNEL_SECRET}
+      LINE_BOT_WEBHOOK_PATH: ${LINE_BOT_WEBHOOK_PATH:-/linebot/webhook}
       
       # Telegram Bot 設定
       TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID}
@@ -50,6 +51,7 @@ services:
       # API Keys
       FINMIND_TOKEN: ${FINMIND_TOKEN}
       FUGLE_API_KEY: ${FUGLE_API_KEY}
+      IMGBB_API_KEY: ${IMGBB_API_KEY}
       
       # 應用程式設定
       PORT: 8080
