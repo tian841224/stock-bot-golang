@@ -17,7 +17,10 @@ RUN go mod download
 COPY . .
 
 # 建置應用程式
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/bot
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -a \
+    -ldflags='-w -s' \
+    -o main ./cmd/bot
 
 # 使用輕量級的 Alpine 映像作為執行階段
 FROM alpine:latest
@@ -27,14 +30,15 @@ RUN apk --no-cache add \
     ca-certificates \
     tzdata \
     fontconfig \
-    wget
+    && rm -rf /var/cache/apk/*
 
 # 下載繁體中文字型 (Variable Font TTF 格式)
 RUN mkdir -p /usr/share/fonts/custom \
     && cd /usr/share/fonts/custom \
     && wget -O NotoSansTC-VariableFont.ttf \
        "https://github.com/google/fonts/raw/main/ofl/notosanstc/NotoSansTC%5Bwght%5D.ttf" \
-    && fc-cache -f -v
+    && fc-cache -f -v \
+    && rm -rf /tmp/*
 
 # 設定時區為台北時間
 ENV TZ=Asia/Taipei
