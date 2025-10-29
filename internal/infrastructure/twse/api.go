@@ -1,3 +1,4 @@
+// Package twse 提供台灣證券交易所 API 的實作
 package twse
 
 import (
@@ -23,7 +24,7 @@ func NewTwseAPI() *TwseAPI {
 	}
 }
 
-// 成交量前 20 股票
+// GetTopVolumeItems 成交量前 20 股票
 func (t *TwseAPI) GetTopVolumeItems() (dto.TopVolumeItemsResponseDto, error) {
 	urlStr := t.baseURL + "/afterTrading/MI_INDEX20"
 	req, err := t.getRequest(urlStr)
@@ -47,7 +48,7 @@ func (t *TwseAPI) GetTopVolumeItems() (dto.TopVolumeItemsResponseDto, error) {
 	return response, nil
 }
 
-// 盤後資訊 - 依股票代碼查詢
+// GetAfterTradingVolume 盤後資訊 - 依股票代碼查詢
 func (t *TwseAPI) GetAfterTradingVolume(symbol string, date string) (dto.AfterTradingVolumeRawResponseDto, error) {
 	u, err := url.Parse(t.baseURL + "/afterTrading/MI_INDEX")
 	if err != nil {
@@ -80,7 +81,7 @@ func (t *TwseAPI) GetAfterTradingVolume(symbol string, date string) (dto.AfterTr
 	return response, nil
 }
 
-// 取得大盤每日成交資訊
+// GetDailyMarketInfo 取得大盤每日成交資訊
 func (t *TwseAPI) GetDailyMarketInfo() (dto.DailyMarketInfoResponseDto, error) {
 	urlStr := t.baseURL + "/afterTrading/FMTQIK"
 	req, err := t.getRequest(urlStr)

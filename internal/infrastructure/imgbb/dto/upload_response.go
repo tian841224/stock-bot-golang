@@ -1,3 +1,4 @@
+// Package dto 提供 ImgBB API 的資料傳輸物件
 package dto
 
 import (

@@ -33,7 +33,7 @@ func NewTgService(
 	}
 }
 
-// 取得大盤資訊
+// GetDailyMarketInfo 取得大盤資訊
 func (s *TgService) GetDailyMarketInfo(count int) (string, error) {
 	marketInfo, err := s.stockService.GetDailyMarketInfo(count)
 	if err != nil {
@@ -43,7 +43,7 @@ func (s *TgService) GetDailyMarketInfo(count int) (string, error) {
 	return s.formatDailyMarketInfoMessage(marketInfo), nil
 }
 
-// 取得股票績效
+// GetStockPerformance 取得股票績效
 func (s *TgService) GetStockPerformance(symbol string) (string, error) {
 	// 驗證股票代號並取得基本資訊
 	valid, stockName, err := s.stockService.ValidateStockID(symbol)
@@ -64,7 +64,7 @@ func (s *TgService) GetStockPerformance(symbol string) (string, error) {
 	return formattedText, nil
 }
 
-// 取得股票績效並生成圖表
+// GetStockPerformanceWithChart 取得股票績效並生成圖表
 func (s *TgService) GetStockPerformanceWithChart(symbol string, chartType string) ([]byte, string, error) {
 	// 驗證股票代號並取得基本資訊
 	valid, stockName, err := s.stockService.ValidateStockID(symbol)
@@ -92,7 +92,7 @@ func (s *TgService) GetStockPerformanceWithChart(symbol string, chartType string
 	return performanceChartData.ChartData, formattedText, nil
 }
 
-// 取得格式化的交易量前20名
+// GetTopVolumeItemsFormatted 取得格式化的交易量前20名
 func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
 	topItems, err := s.stockService.GetTopVolumeItems()
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
 	return messageText, nil
 }
 
-// 取得指定日期的股價資訊
+// GetStockPriceByDate 取得指定日期的股價資訊
 func (s *TgService) GetStockPriceByDate(symbol, date string) (string, error) {
 	// 取得指定日期股價資訊
 	stockInfo, err := s.stockService.GetStockPrice(symbol, date)
@@ -181,7 +181,7 @@ func (s *TgService) GetStockPriceByDate(symbol, date string) (string, error) {
 	return message, nil
 }
 
-// 取得股票詳細資訊
+// GetStockInfo 取得股票詳細資訊
 func (s *TgService) GetStockInfo(symbol string) (string, error) {
 	stockInfo, err := s.stockService.GetStockInfo(symbol)
 	if err != nil {
@@ -193,7 +193,7 @@ func (s *TgService) GetStockInfo(symbol string) (string, error) {
 	return message, nil
 }
 
-// 取得股票財報和圖表
+// GetStockRevenueWithChart 取得股票財報和圖表
 func (s *TgService) GetStockRevenueWithChart(symbol string) ([]byte, string, error) {
 	revenue, err := s.stockService.GetStockRevenue(symbol)
 	if err != nil {
@@ -211,7 +211,7 @@ func (s *TgService) GetStockRevenueWithChart(symbol string) ([]byte, string, err
 	return chart, message, nil
 }
 
-// 取得股票歷史K線圖
+// GetStockHistoricalCandlesChart 取得股票歷史K線圖
 func (s *TgService) GetStockHistoricalCandlesChart(symbol string) ([]byte, string, error) {
 	dto := fugleDto.FugleCandlesRequestDto{
 		Symbol: symbol,
@@ -231,7 +231,7 @@ func (s *TgService) GetStockHistoricalCandlesChart(symbol string) ([]byte, strin
 	return chart, caption, nil
 }
 
-// 取得股票新聞
+// GetTaiwanStockNews 取得股票新聞
 func (s *TgService) GetTaiwanStockNews(symbol string) (*tgDto.StockNewsMessage, error) {
 	// 驗證股票代號
 	valid, stockName, err := s.stockService.ValidateStockID(symbol)
@@ -269,7 +269,7 @@ func (s *TgService) GetTaiwanStockNews(symbol string) (*tgDto.StockNewsMessage, 
 	return message, nil
 }
 
-// 新增使用者股票訂閱
+// AddUserStockSubscription 新增使用者股票訂閱
 func (s *TgService) AddUserStockSubscription(userID uint, symbol string) (string, error) {
 	// 驗證股票代號
 	valid, _, err := s.stockService.ValidateStockID(symbol)
@@ -291,7 +291,7 @@ func (s *TgService) AddUserStockSubscription(userID uint, symbol string) (string
 	return "訂閱成功", nil
 }
 
-// 刪除使用者股票訂閱
+// DeleteUserStockSubscription 刪除使用者股票訂閱
 func (s *TgService) DeleteUserStockSubscription(userID uint, symbol string) (string, error) {
 	// 刪除股票訂閱
 	success, err := s.userSubscriptionRepo.DeleteUserSubscriptionStock(userID, symbol)
@@ -307,7 +307,7 @@ func (s *TgService) DeleteUserStockSubscription(userID uint, symbol string) (str
 	return "取消訂閱成功", nil
 }
 
-// 取得使用者訂閱清單
+// GetUserSubscriptionList 取得使用者訂閱清單
 func (s *TgService) GetUserSubscriptionList(userID uint) (string, error) {
 	// 取得使用者訂閱項目
 	subscriptions, err := s.userSubscriptionRepo.GetUserSubscriptionList(userID)
@@ -427,27 +427,8 @@ func (s *TgService) formatTimeFromTimestamp(timestamp int64) string {
 	return t.Format("2006/01")
 }
 
-// formatNumber 格式化數字，加上千分位分隔符
-func (s *TgService) formatNumber(num int64) string {
-	str := fmt.Sprintf("%d", num)
-	n := len(str)
-	if n <= 3 {
-		return str
-	}
-
-	result := ""
-	for i, char := range str {
-		if i > 0 && (n-i)%3 == 0 {
-			result += ","
-		}
-		result += string(char)
-	}
-	return result
-}
-
 // 格式化股票績效
 func (s *TgService) formatPerformanceTable(stockName, symbol string, performanceData *stockDto.StockPerformanceResponseDto) string {
-
 	result := "<pre>"
 	// 使用手機友善的格式，避免複雜表格
 	result += fmt.Sprintf("📊 <b>%s (%s) 績效表現</b>\n\n", stockName, symbol)
@@ -589,28 +570,4 @@ func (s *TgService) formatStockInfoMessage(stockInfo *stockDto.StockQuoteInfo) s
 	message.WriteString(fmt.Sprintf("%.2f%%", stockInfo.NetMargin))
 	message.WriteString("</pre>")
 	return message.String()
-}
-
-// 轉換時間範圍顯示文字
-func (s *TgService) convertTimeRange(timeRange string) string {
-	switch timeRange {
-	case "h":
-		return "分時"
-	case "d":
-		return "日K"
-	case "w":
-		return "週K"
-	case "m":
-		return "月K"
-	case "5m":
-		return "5分"
-	case "15m":
-		return "15分"
-	case "30m":
-		return "30分"
-	case "60m":
-		return "60分"
-	default:
-		return "日K" // 預設值
-	}
 }

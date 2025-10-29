@@ -1,6 +1,6 @@
 package dto
 
-// 台股各種指標
+// TaiwanVariousIndicatorsResponseDto 台股各種指標
 type TaiwanVariousIndicatorsResponseDto struct {
 	Msg    string                        `json:"msg"`
 	Status int                           `json:"status"`

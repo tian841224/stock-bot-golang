@@ -1,6 +1,6 @@
 package dto
 
-// 兌台幣匯率
+// TaiwanExchangeRateResponseDto 兌台幣匯率
 type TaiwanExchangeRateResponseDto struct {
 	Msg    string                   `json:"msg"`
 	Status int                      `json:"status"`

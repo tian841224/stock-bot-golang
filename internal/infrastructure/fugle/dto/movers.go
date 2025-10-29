@@ -1,6 +1,6 @@
 package dto
 
-// 股票漲跌幅排行
+// FugleMoversRequestDto 股票漲跌幅排行
 type FugleMoversRequestDto struct {
 	// 市場別
 	Market string `json:"market"`
@@ -22,6 +22,7 @@ type FugleMoversRequestDto struct {
 	Eq string `json:"eq"`
 }
 
+// FugleMoversResponseDto 股票漲跌幅排行回應
 type FugleMoversResponseDto struct {
 	// 日期
 	Date string `json:"date"`
@@ -35,6 +36,7 @@ type FugleMoversResponseDto struct {
 	Data []FugleMoversDataDto `json:"data"`
 }
 
+// FugleMoversDataDto 股票漲跌幅排行資料
 type FugleMoversDataDto struct {
 	// Ticker 類型
 	Type string `json:"type"`

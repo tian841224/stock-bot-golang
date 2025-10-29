@@ -1,3 +1,4 @@
+// Package fugle 提供 Fugle API 的實作
 package fugle
 
 import (
@@ -12,16 +13,19 @@ import (
 	"github.com/tian841224/stock-bot/internal/infrastructure/fugle/dto"
 )
 
+// FugleAPIInterface 定義 Fugle API 的介面
 type FugleAPIInterface interface {
 	GetStockIntradayQuote(requestDto dto.FugleStockQuoteRequestDto) (dto.FugleStockQuoteResponseDto, error)
 }
 
+// FugleAPI 定義 Fugle API 的實作
 type FugleAPI struct {
 	baseURL    string
 	client     *http.Client
 	httpHeader http.Header
 }
 
+// NewFugleAPI 建立新的 FugleAPI 實例
 func NewFugleAPI(cfg config.Config) *FugleAPI {
 	return &FugleAPI{
 		baseURL: "https://api.fugle.tw/marketdata/v1.0/stock/",
@@ -32,7 +36,7 @@ func NewFugleAPI(cfg config.Config) *FugleAPI {
 	}
 }
 
-// 取得日內股票即時報價
+// GetStockIntradayQuote 取得日內股票即時報價
 func (f *FugleAPI) GetStockIntradayQuote(requestDto dto.FugleStockQuoteRequestDto) (dto.FugleStockQuoteResponseDto, error) {
 	url := f.baseURL + "/intraday/quote/" + requestDto.Symbol
 	if requestDto.Type != "" {
@@ -41,7 +45,7 @@ func (f *FugleAPI) GetStockIntradayQuote(requestDto dto.FugleStockQuoteRequestDt
 	return getResponse[dto.FugleStockQuoteResponseDto](f, url)
 }
 
-// 取得盤中 K 線
+// GetStockIntradayCandles 取得盤中 K 線
 func (f *FugleAPI) GetStockIntradayCandles(requestDto dto.FugleCandlesRequestDto) (dto.FugleCandlesResponseDto, error) {
 	url := f.baseURL + "/intraday/candles/" + requestDto.Symbol
 	if requestDto.From != "" {
@@ -62,7 +66,7 @@ func (f *FugleAPI) GetStockIntradayCandles(requestDto dto.FugleCandlesRequestDto
 	return getResponse[dto.FugleCandlesResponseDto](f, url)
 }
 
-// 取得股票歷史Ｋ線
+// GetStockHistoricalCandles 取得股票歷史Ｋ線
 func (f *FugleAPI) GetStockHistoricalCandles(requestDto dto.FugleCandlesRequestDto) (dto.FugleCandlesResponseDto, error) {
 	apiURL := f.baseURL + "/historical/candles/" + requestDto.Symbol
 	params := url.Values{}
@@ -87,7 +91,7 @@ func (f *FugleAPI) GetStockHistoricalCandles(requestDto dto.FugleCandlesRequestD
 	return getResponse[dto.FugleCandlesResponseDto](f, apiURL)
 }
 
-// 取得股票漲跌幅排行快照(需開發者權限)
+// GetStockSnapshotMovers 取得股票漲跌幅排行快照(需開發者權限)
 func (f *FugleAPI) GetStockSnapshotMovers(requestDto dto.FugleMoversRequestDto) (dto.FugleMoversResponseDto, error) {
 	apiURL := f.baseURL + "/snapshot/movers"
 	params := url.Values{}

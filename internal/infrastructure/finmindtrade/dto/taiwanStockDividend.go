@@ -1,6 +1,6 @@
 package dto
 
-// 股利發放
+// TaiwanStockDividendResponseDto 股利發放
 type TaiwanStockDividendResponseDto struct {
 	Msg    string                  `json:"msg"`
 	Status int                     `json:"status"`

@@ -1,3 +1,4 @@
+// Package stock 提供股票領域模型
 package stock
 
 import (

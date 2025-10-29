@@ -1,6 +1,7 @@
+// Package dto 提供鉅亨網 API 的資料傳輸物件
 package dto
 
-// 營收
+// CnyesRevenueResponseDto 營收
 type CnyesRevenueResponseDto struct {
 	StatusCode int                 `json:"statusCode"`
 	Message    string              `json:"message"`

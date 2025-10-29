@@ -1,11 +1,13 @@
+// Package dto 提供 Fugle API 的 DTO 定義
 package dto
 
-// 股票統計資訊
+// FugleStatsRequestDto 股票統計資訊
 type FugleStatsRequestDto struct {
 	// 股票代碼
 	Symbol string `json:"symbol"`
 }
 
+// FugleStatsResponseDto 股票統計資訊回應
 type FugleStatsResponseDto struct {
 	// 日期
 	Date string `json:"date"`

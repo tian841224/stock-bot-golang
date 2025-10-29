@@ -1,3 +1,4 @@
+// Package db 提供資料庫連線與操作功能
 package db
 
 import (

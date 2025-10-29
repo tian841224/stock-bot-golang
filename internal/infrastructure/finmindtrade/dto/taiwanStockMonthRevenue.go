@@ -1,6 +1,6 @@
 package dto
 
-// 月營收表
+// TaiwanStockMonthRevenueResponseDto 月營收表
 type TaiwanStockMonthRevenueResponseDto struct {
 	Msg    string                        `json:"msg"`
 	Status int                           `json:"status"`

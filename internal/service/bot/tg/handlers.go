@@ -1,3 +1,4 @@
+// Package tg 提供 Telegram Bot 的處理器功能
 package tg
 
 import (

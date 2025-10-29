@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// BotService 處理對話邏輯
+// LineBotHandler 處理對話邏輯
 type LineBotHandler struct {
 	botClient      *linebotInfra.LineBotClient
 	commandHandler *LineCommandHandler

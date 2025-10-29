@@ -1,6 +1,6 @@
 package dto
 
-// 美股盤後股價
+// USStockPriceResponseDto 美股盤後股價回應
 type USStockPriceResponseDto struct {
 	Msg    string           `json:"msg"`
 	Status int              `json:"status"`

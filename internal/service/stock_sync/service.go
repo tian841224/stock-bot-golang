@@ -1,3 +1,4 @@
+// Package stock_sync 提供股票資料同步服務
 package stock_sync
 
 import (

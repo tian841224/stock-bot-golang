@@ -1,3 +1,4 @@
+// Package finmindtrade 提供 FinMind Trade API 的實作
 package finmindtrade
 
 import (
@@ -48,7 +49,7 @@ func NewFinmindTradeAPI(cfg config.Config) *FinmindTradeAPI {
 	}
 }
 
-// 取得台灣股票資訊
+// GetTaiwanStockInfo 取得台灣股票資訊
 func (f *FinmindTradeAPI) GetTaiwanStockInfo() (response dto.TaiwanStockInfoResponseDto, err error) {
 	requestDto := dto.FinmindtradeRequestDto{
 		DataSet: "TaiwanStockInfo",
@@ -56,49 +57,49 @@ func (f *FinmindTradeAPI) GetTaiwanStockInfo() (response dto.TaiwanStockInfoResp
 	return doRequest[dto.TaiwanStockInfoResponseDto](f, requestDto)
 }
 
-// 取得台灣股票價格
+// GetTaiwanStockPrice 取得台灣股票價格
 func (f *FinmindTradeAPI) GetTaiwanStockPrice(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockPriceResponseDto, err error) {
 	requestDto.DataSet = "TaiwanStockPrice"
 	return doRequest[dto.TaiwanStockPriceResponseDto](f, requestDto)
 }
 
-// 取得台灣匯率
+// GetTaiwanExchangeRate 取得台灣匯率
 func (f *FinmindTradeAPI) GetTaiwanExchangeRate(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanExchangeRateResponseDto, err error) {
 	requestDto.DataSet = "TaiwanExchangeRate"
 	return doRequest[dto.TaiwanExchangeRateResponseDto](f, requestDto)
 }
 
-// 取得台灣股票股利
+// GetTaiwanStockDividend 取得台灣股票股利
 func (f *FinmindTradeAPI) GetTaiwanStockDividend(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockDividendResponseDto, err error) {
 	requestDto.DataSet = "TaiwanStockDividend"
 	return doRequest[dto.TaiwanStockDividendResponseDto](f, requestDto)
 }
 
-// 綜合損益表
+// GetTaiwanStockFinancialStatements 綜合損益表
 func (f *FinmindTradeAPI) GetTaiwanStockFinancialStatements(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockFinancialStatementsResponseDto, err error) {
 	requestDto.DataSet = "TaiwanStockFinancialStatements"
 	return doRequest[dto.TaiwanStockFinancialStatementsResponseDto](f, requestDto)
 }
 
-// 月營收表
+// GetTaiwanStockMonthRevenue 月營收表
 func (f *FinmindTradeAPI) GetTaiwanStockMonthRevenue(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockMonthRevenueResponseDto, err error) {
 	requestDto.DataSet = "TaiwanStockMonthRevenue"
 	return doRequest[dto.TaiwanStockMonthRevenueResponseDto](f, requestDto)
 }
 
-// 台股交易日
+// GetTaiwanStockTradingDate 台股交易日
 func (f *FinmindTradeAPI) GetTaiwanStockTradingDate(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockTradingDateResponseDto, err error) {
 	requestDto.DataSet = "TaiwanStockTradingDate"
 	return doRequest[dto.TaiwanStockTradingDateResponseDto](f, requestDto)
 }
 
-// 台股各種指標(每5秒)
+// GetTaiwanVariousIndicators 台股各種指標(每5秒)
 func (f *FinmindTradeAPI) GetTaiwanVariousIndicators(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanVariousIndicatorsResponseDto, err error) {
 	requestDto.DataSet = "TaiwanVariousIndicators5Seconds"
 	return doRequest[dto.TaiwanVariousIndicatorsResponseDto](f, requestDto)
 }
 
-// 台股分割股價
+// GetTaiwanStockSplitPrice 台股分割股價
 func (f *FinmindTradeAPI) GetTaiwanStockSplitPrice(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockSplitPriceResponseDto, err error) {
 	requestDto.DataSet = "TaiwanStockSplitPrice"
 	return doRequest[dto.TaiwanStockSplitPriceResponseDto](f, requestDto)
@@ -109,7 +110,7 @@ func (f *FinmindTradeAPI) GetTaiwanStockNews(requestDto dto.FinmindtradeRequestD
 	return doRequest[dto.TaiwanNewsResponseDto](f, requestDto)
 }
 
-// 美股股票清單
+// GetUSStockInfo 美股股票清單
 func (f *FinmindTradeAPI) GetUSStockInfo() (response dto.USStockInfoResponseDto, err error) {
 	requestDto := dto.FinmindtradeRequestDto{
 		DataSet: "USStockInfo",
@@ -117,16 +118,16 @@ func (f *FinmindTradeAPI) GetUSStockInfo() (response dto.USStockInfoResponseDto,
 	return doRequest[dto.USStockInfoResponseDto](f, requestDto)
 }
 
-// 美股盤後股價
+// GetUSStockPrice 美股盤後股價
 func (f *FinmindTradeAPI) GetUSStockPrice(requestDto dto.FinmindtradeRequestDto) (response dto.USStockPriceResponseDto, err error) {
 	requestDto.DataSet = "USStockPrice"
 	return doRequest[dto.USStockPriceResponseDto](f, requestDto)
 }
 
-// 大盤資訊(法人/資券/美股大盤)
+// GetTodayInfo 大盤資訊(法人/資券/美股大盤)
 func (f *FinmindTradeAPI) GetTodayInfo() (response dto.TodayInfoResponseDto, err error) {
-	baseUrl := "https://api.web.finmindtrade.com/v2/today_info"
-	req, err := http.NewRequest("GET", baseUrl, nil)
+	baseURL := "https://api.web.finmindtrade.com/v2/today_info"
+	req, err := http.NewRequest("GET", baseURL, nil)
 	if err != nil {
 		return response, err
 	}
@@ -148,10 +149,10 @@ func (f *FinmindTradeAPI) GetTodayInfo() (response dto.TodayInfoResponseDto, err
 	return response, nil
 }
 
-// 取得台灣股票分析
+// GetTaiwanStockAnalysis 取得台灣股票分析
 func (f *FinmindTradeAPI) GetTaiwanStockAnalysis(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockAnalysisResponseDto, err error) {
-	baseUrl := "https://api.web.finmindtrade.com/v2/taiwan_stock_analysis"
-	req, err := http.NewRequest("GET", baseUrl, nil)
+	baseURL := "https://api.web.finmindtrade.com/v2/taiwan_stock_analysis"
+	req, err := http.NewRequest("GET", baseURL, nil)
 	if err != nil {
 		return response, err
 	}
@@ -180,8 +181,8 @@ func (f *FinmindTradeAPI) GetTaiwanStockAnalysis(requestDto dto.FinmindtradeRequ
 }
 
 func (f *FinmindTradeAPI) GetTaiwanStockAnalysisPlot(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockAnalysisPlotResponseDto, err error) {
-	baseUrl := "https://api.web.finmindtrade.com/v2/taiwan_stock_analysis_plot"
-	req, err := http.NewRequest("GET", baseUrl, nil)
+	baseURL := "https://api.web.finmindtrade.com/v2/taiwan_stock_analysis_plot"
+	req, err := http.NewRequest("GET", baseURL, nil)
 	if err != nil {
 		return response, err
 	}

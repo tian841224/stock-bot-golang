@@ -1,3 +1,4 @@
+// Package dto 提供鉅亨網 API 的資料傳輸物件
 package dto
 
 // CnyesStockQuoteResponseDto 鉅亨網股票報價回應

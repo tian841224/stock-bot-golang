@@ -17,11 +17,11 @@ func NewTelegramFormatter() *TelegramFormatter {
 func (tf *TelegramFormatter) FormatStockInfo(stockInfo interface{}) string {
 	// 這裡使用 interface{} 是為了避免循環依賴
 	// 在實際使用時會傳入 StockQuoteInfo 結構
-	return tf.buildStockMessage(stockInfo)
+	return tf.buildStockMessage()
 }
 
 // buildStockMessage 建構股票訊息
-func (tf *TelegramFormatter) buildStockMessage(data interface{}) string {
+func (tf *TelegramFormatter) buildStockMessage() string {
 	var message strings.Builder
 
 	// 這裡需要使用反射或類型斷言來處理

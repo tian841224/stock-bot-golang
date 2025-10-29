@@ -408,7 +408,6 @@ func (s *LineService) formatNumber(num int64) string {
 
 // 格式化股票績效
 func (s *LineService) formatPerformanceTable(stockName, symbol string, performanceData *stockDto.StockPerformanceResponseDto) string {
-
 	result := ""
 	// 使用手機友善的格式，避免複雜表格
 	result += fmt.Sprintf("📊 %s (%s) 績效表現\n\n", stockName, symbol)

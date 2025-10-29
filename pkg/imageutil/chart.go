@@ -1,3 +1,4 @@
+// Package imageutil 提供圖片處理與圖表生成功能
 package imageutil
 
 import (

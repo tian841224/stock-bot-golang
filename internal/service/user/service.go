@@ -1,3 +1,4 @@
+// Package user 提供使用者相關服務
 package user
 
 import (

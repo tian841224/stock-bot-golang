@@ -115,7 +115,6 @@ func runBackgroundSync(ctx context.Context, stockSyncService *stock_sync.StockSy
 			if stats, err := stockSyncService.GetSyncStats(); err == nil {
 				logger.Log.Info("初始同步統計", zap.Any("stats", stats))
 			}
-
 		}
 	}
 }

@@ -26,10 +26,7 @@ func (m *StockMapper) FromCnyesDto(dto cnyesDto.CnyesStockQuoteDataDto) (*stock.
 	}
 
 	// 建立價格資訊
-	priceInfo, err := m.buildStockPrice(dto)
-	if err != nil {
-		return nil, err
-	}
+	priceInfo := m.buildStockPrice(dto)
 
 	// 建立財務指標
 	financials := m.buildFinancialMetrics(dto)
@@ -134,7 +131,7 @@ func (m *StockMapper) ToStockQuoteDto(stock *stock.Stock) *stockDto.StockQuoteIn
 }
 
 // buildStockPrice 建立股票價格資訊
-func (m *StockMapper) buildStockPrice(dto cnyesDto.CnyesStockQuoteDataDto) (*stock.StockPrice, error) {
+func (m *StockMapper) buildStockPrice(dto cnyesDto.CnyesStockQuoteDataDto) *stock.StockPrice {
 	updateTime := time.Unix(dto.UpdateTime, 0)
 
 	return &stock.StockPrice{
@@ -150,7 +147,7 @@ func (m *StockMapper) buildStockPrice(dto cnyesDto.CnyesStockQuoteDataDto) (*sto
 		VolumeRatio:  dto.VolumeRatio * 100, // 轉換為百分比
 		Amplitude:    dto.Amplitude,
 		UpdateTime:   updateTime,
-	}, nil
+	}
 }
 
 // buildStockPriceFromFinmind 從 FinMind 資料建立股票價格資訊

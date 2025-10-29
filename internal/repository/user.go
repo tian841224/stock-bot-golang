@@ -1,3 +1,4 @@
+// Package repository 提供資料存取層實作
 package repository
 
 import (

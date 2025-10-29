@@ -1,3 +1,4 @@
+// Package tgbot 提供 Telegram Bot 客戶端實作
 package tgbot
 
 import (

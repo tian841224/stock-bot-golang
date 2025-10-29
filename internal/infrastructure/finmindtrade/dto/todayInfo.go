@@ -1,6 +1,6 @@
 package dto
 
-// 大盤資訊(法人/資券/美股大盤)
+// TodayInfoResponseDto 大盤資訊(法人/資券/美股大盤)
 type TodayInfoResponseDto struct {
 	Msg    string        `json:"msg"`
 	Status int           `json:"status"`
@@ -33,7 +33,7 @@ type TotalMarginPurchaseShortSaleData struct {
 }
 
 type TodayInfoUSStockPriceData struct {
-	Adj_Close float64 `json:"Adj_Close"`
+	AdjClose  float64 `json:"Adj_Close"`
 	Close     float64 `json:"Close"`
 	High      float64 `json:"High"`
 	Low       float64 `json:"Low"`

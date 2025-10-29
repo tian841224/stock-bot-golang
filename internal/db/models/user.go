@@ -1,6 +1,7 @@
+// Package models 提供資料庫模型定義
 package models
 
-// 使用者模型
+// User 使用者模型
 type User struct {
 	Model
 	AccountID string `gorm:"column:account_id;type:varchar(255);uniqueIndex;not null" json:"account_id"`

@@ -1,6 +1,7 @@
+// Package dto 提供 Fugle API 的 DTO 定義
 package dto
 
-// 股票Ｋ線
+// FugleCandlesRequestDto 股票Ｋ線
 type FugleCandlesRequestDto struct {
 	// 股票代碼
 	Symbol string `json:"symbol"`
@@ -16,6 +17,7 @@ type FugleCandlesRequestDto struct {
 	Sort string `json:"sort"`
 }
 
+// FugleCandlesResponseDto 股票Ｋ線回應
 type FugleCandlesResponseDto struct {
 	// 日期
 	Date string `json:"date"`
@@ -33,6 +35,7 @@ type FugleCandlesResponseDto struct {
 	Data []FugleCandlesDataDto `json:"data"`
 }
 
+// FugleCandlesDataDto 股票Ｋ線資料
 type FugleCandlesDataDto struct {
 	// 日期（分 K 含時間）
 	Date string `json:"date"`

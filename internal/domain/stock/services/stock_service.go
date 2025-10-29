@@ -131,7 +131,7 @@ func (s *StockDomainService) CalculatePerformance(stock *stock.Stock, period str
 		StockID:     stock.ID,
 		Period:      period,
 		PeriodName:  s.getPeriodName(period),
-		Performance: s.calculatePerformanceValue(stock, period),
+		Performance: s.calculatePerformanceValue(stock),
 	}
 
 	return performance, nil
@@ -156,7 +156,7 @@ func (s *StockDomainService) getPeriodName(period string) string {
 }
 
 // calculatePerformanceValue 計算績效值
-func (s *StockDomainService) calculatePerformanceValue(stock *stock.Stock, period string) string {
+func (s *StockDomainService) calculatePerformanceValue(stock *stock.Stock) string {
 	if stock.CurrentInfo == nil {
 		return "無資料"
 	}

@@ -1,6 +1,6 @@
 package dto
 
-// 台股盤後資訊
+// TaiwanStockPriceResponseDto 台股盤後資訊
 type TaiwanStockPriceResponseDto struct {
 	Msg    string                 `json:"msg"`
 	Status int                    `json:"status"`

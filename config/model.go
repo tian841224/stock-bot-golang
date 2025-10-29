@@ -1,3 +1,4 @@
+// Package config 提供應用程式設定管理
 package config
 
 type Config struct {

@@ -1,6 +1,6 @@
 package dto
 
-// 美股股票清單
+// USStockInfoResponseDto 美股股票清單
 type USStockInfoResponseDto struct {
 	Msg    string        `json:"msg"`
 	Status int           `json:"status"`

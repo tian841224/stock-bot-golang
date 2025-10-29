@@ -1,3 +1,4 @@
+// Package cnyes 提供鉅亨網 API 的實作
 package cnyes
 
 import (

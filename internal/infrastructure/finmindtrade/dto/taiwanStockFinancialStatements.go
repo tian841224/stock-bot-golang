@@ -1,6 +1,6 @@
 package dto
 
-// 綜合損益表
+// TaiwanStockFinancialStatementsResponseDto 綜合損益表
 type TaiwanStockFinancialStatementsResponseDto struct {
 	Msg    string                               `json:"msg"`
 	Status int                                  `json:"status"`

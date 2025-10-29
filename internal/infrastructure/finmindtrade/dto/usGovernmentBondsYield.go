@@ -1,6 +1,6 @@
 package dto
 
-// 美國公債殖利率
+// USGovernmentBondsYieldResponseDto 美國公債殖利率
 type USGovernmentBondsYieldResponseDto struct {
 	Msg    string                     `json:"msg"`
 	Status int                        `json:"status"`

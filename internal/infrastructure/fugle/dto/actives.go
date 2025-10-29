@@ -1,6 +1,7 @@
+// Package dto 提供 Fugle API 的 DTO 定義
 package dto
 
-// 股票成交量值排行（依市場別）
+// FugleActivesRequestDto 股票成交量值排行（依市場別）
 type FugleActivesRequestDto struct {
 	// 市場別 可選 TSE 上市；OTC 上櫃；ESB 興櫃一般板；TIB 臺灣創新板；PSB 興櫃戰略新板
 	Market string `json:"market"`
@@ -10,6 +11,7 @@ type FugleActivesRequestDto struct {
 	Type string `json:"type"`
 }
 
+// FugleActivesResponseDto 股票成交量值排行（依市場別）回應
 type FugleActivesResponseDto struct {
 	// 日期
 	Date string `json:"date"`
@@ -23,6 +25,7 @@ type FugleActivesResponseDto struct {
 	Data []FugleActivesDataDto `json:"data"`
 }
 
+// FugleActivesDataDto 股票成交量值排行（依市場別）資料
 type FugleActivesDataDto struct {
 	// Ticker 類型
 	Type string `json:"type"`
