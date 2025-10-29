@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"stock-bot/internal/db/models"
-	"stock-bot/internal/service/user"
-	"stock-bot/pkg/logger"
+	"github.com/tian841224/stock-bot/internal/db/models"
+	"github.com/tian841224/stock-bot/internal/service/user"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"

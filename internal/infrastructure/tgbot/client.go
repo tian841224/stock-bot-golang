@@ -1,7 +1,7 @@
 package tgbot
 
 import (
-	"stock-bot/config"
+	"github.com/tian841224/stock-bot/config"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )

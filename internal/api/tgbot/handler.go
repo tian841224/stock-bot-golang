@@ -2,10 +2,11 @@ package tgbot
 
 import (
 	"net/http"
-	"stock-bot/config"
 
-	"stock-bot/internal/service/bot/tg"
-	"stock-bot/pkg/logger"
+	"github.com/tian841224/stock-bot/config"
+
+	"github.com/tian841224/stock-bot/internal/service/bot/tg"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"

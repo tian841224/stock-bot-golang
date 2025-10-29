@@ -6,9 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"stock-bot/config"
-	"stock-bot/internal/infrastructure/fugle/dto"
 	"time"
+
+	"github.com/tian841224/stock-bot/config"
+	"github.com/tian841224/stock-bot/internal/infrastructure/fugle/dto"
 )
 
 type FugleAPIInterface interface {

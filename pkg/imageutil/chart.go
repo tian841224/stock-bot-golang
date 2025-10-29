@@ -7,10 +7,11 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
-	"stock-bot/pkg/logger"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/golang/freetype"
 	"go.uber.org/zap"

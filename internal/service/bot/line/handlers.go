@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"stock-bot/internal/db/models"
-	"stock-bot/internal/service/user"
-	"stock-bot/pkg/logger"
+	"github.com/tian841224/stock-bot/internal/db/models"
+	"github.com/tian841224/stock-bot/internal/service/user"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
-	linebotInfra "stock-bot/internal/infrastructure/linebot"
+	linebotInfra "github.com/tian841224/stock-bot/internal/infrastructure/linebot"
 
 	"github.com/line/line-bot-sdk-go/linebot"
 	"go.uber.org/zap"

@@ -1,4 +1,4 @@
-module stock-bot
+module github.com/tian841224/stock-bot
 
 go 1.24.1
 

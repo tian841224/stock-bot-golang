@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"stock-bot/internal/db/models"
+	"github.com/tian841224/stock-bot/internal/db/models"
 
 	"gorm.io/gorm"
 )

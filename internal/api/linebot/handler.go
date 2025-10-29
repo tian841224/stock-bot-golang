@@ -1,9 +1,9 @@
 package linebot
 
 import (
-	linebotInfra "stock-bot/internal/infrastructure/linebot"
-	"stock-bot/internal/service/bot/line"
-	"stock-bot/pkg/logger"
+	linebotInfra "github.com/tian841224/stock-bot/internal/infrastructure/linebot"
+	"github.com/tian841224/stock-bot/internal/service/bot/line"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/line/line-bot-sdk-go/linebot"

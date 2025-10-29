@@ -2,16 +2,17 @@ package tg
 
 import (
 	"fmt"
-	fugleDto "stock-bot/internal/infrastructure/fugle/dto"
-	twseDto "stock-bot/internal/infrastructure/twse/dto"
-	"stock-bot/internal/repository"
-	tgDto "stock-bot/internal/service/bot/tg/dto"
-	"stock-bot/internal/service/twstock"
-	stockDto "stock-bot/internal/service/twstock/dto"
-	"stock-bot/pkg/logger"
 	"strconv"
 	"strings"
 	"time"
+
+	fugleDto "github.com/tian841224/stock-bot/internal/infrastructure/fugle/dto"
+	twseDto "github.com/tian841224/stock-bot/internal/infrastructure/twse/dto"
+	"github.com/tian841224/stock-bot/internal/repository"
+	tgDto "github.com/tian841224/stock-bot/internal/service/bot/tg/dto"
+	"github.com/tian841224/stock-bot/internal/service/twstock"
+	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"

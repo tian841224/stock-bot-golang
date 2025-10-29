@@ -3,9 +3,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"stock-bot/config"
-	"stock-bot/internal/db/models"
 	"time"
+
+	"github.com/tian841224/stock-bot/config"
+	"github.com/tian841224/stock-bot/internal/db/models"
 
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"

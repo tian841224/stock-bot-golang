@@ -7,12 +7,12 @@ import (
 	"syscall"
 	"time"
 
-	"stock-bot/config"
-	"stock-bot/internal/db"
-	"stock-bot/internal/infrastructure/finmindtrade"
-	"stock-bot/internal/repository"
-	"stock-bot/internal/service/stock_sync"
-	"stock-bot/pkg/logger"
+	"github.com/tian841224/stock-bot/config"
+	"github.com/tian841224/stock-bot/internal/db"
+	"github.com/tian841224/stock-bot/internal/infrastructure/finmindtrade"
+	"github.com/tian841224/stock-bot/internal/repository"
+	"github.com/tian841224/stock-bot/internal/service/stock_sync"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
 )

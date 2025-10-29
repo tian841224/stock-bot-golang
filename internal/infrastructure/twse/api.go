@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"stock-bot/internal/infrastructure/twse/dto"
 	"strings"
 	"time"
+
+	"github.com/tian841224/stock-bot/internal/infrastructure/twse/dto"
 )
 
 type TwseAPI struct {

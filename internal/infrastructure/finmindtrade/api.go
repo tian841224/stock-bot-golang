@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"stock-bot/config"
-	"stock-bot/internal/infrastructure/finmindtrade/dto"
 	"time"
+
+	"github.com/tian841224/stock-bot/config"
+	"github.com/tian841224/stock-bot/internal/infrastructure/finmindtrade/dto"
 )
 
 // FinmindTradeAPIInterface 定義 FinmindTrade API 的介面

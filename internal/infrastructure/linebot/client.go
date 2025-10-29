@@ -1,7 +1,7 @@
 package linebot
 
 import (
-	"stock-bot/config"
+	"github.com/tian841224/stock-bot/config"
 
 	"github.com/line/line-bot-sdk-go/linebot"
 )

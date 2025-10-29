@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"stock-bot/internal/infrastructure/cnyes/dto"
 	"time"
+
+	"github.com/tian841224/stock-bot/internal/infrastructure/cnyes/dto"
 )
 
 // CnyesAPIInterface 定義鉅亨網 API 的介面

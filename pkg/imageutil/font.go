@@ -3,7 +3,8 @@ package imageutil
 import (
 	"fmt"
 	"os"
-	"stock-bot/pkg/logger"
+
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/flopp/go-findfont"
 	"github.com/golang/freetype/truetype"

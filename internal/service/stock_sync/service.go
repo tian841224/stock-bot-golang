@@ -1,11 +1,12 @@
 package stock_sync
 
 import (
-	"stock-bot/internal/db/models"
-	"stock-bot/internal/infrastructure/finmindtrade"
-	"stock-bot/internal/repository"
-	"stock-bot/pkg/logger"
 	"sync"
+
+	"github.com/tian841224/stock-bot/internal/db/models"
+	"github.com/tian841224/stock-bot/internal/infrastructure/finmindtrade"
+	"github.com/tian841224/stock-bot/internal/repository"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
 )

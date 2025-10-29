@@ -2,8 +2,9 @@ package user
 
 import (
 	"errors"
-	"stock-bot/internal/db/models"
-	"stock-bot/internal/repository"
+
+	"github.com/tian841224/stock-bot/internal/db/models"
+	"github.com/tian841224/stock-bot/internal/repository"
 
 	"gorm.io/gorm"
 )

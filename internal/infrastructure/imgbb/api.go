@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"stock-bot/internal/infrastructure/imgbb/dto"
+	"github.com/tian841224/stock-bot/internal/infrastructure/imgbb/dto"
 )
 
 const (
