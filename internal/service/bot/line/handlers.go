@@ -1,4 +1,4 @@
-package linebot
+package line
 
 import (
 	"strconv"

@@ -177,7 +177,7 @@ func (r *userSubscriptionRepository) DeleteUserSubscriptionStock(userID uint, st
 
 	// 取得股票功能
 	var stockFeature models.Feature
-	err = r.db.Where("code = ?", "股票資訊").First(&stockFeature).Error
+	err = r.db.Where("code = ?", "1").First(&stockFeature).Error
 	if err != nil {
 		return false, err
 	}
