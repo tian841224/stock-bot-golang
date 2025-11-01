@@ -23,14 +23,16 @@ var SubscriptionItemMap = map[string]SubscriptionItem{
 // GetName returns the name of the subscription item
 func (s SubscriptionItem) GetName() string {
 	switch s {
+	case SubscriptionItemDefault:
+		return "Default"
 	case SubscriptionItemStockInfo:
-		return "Stock Info"
+		return "股票資訊"
 	case SubscriptionItemStockNews:
-		return "Stock News"
+		return "股票新聞"
 	case SubscriptionItemDailyMarketInfo:
-		return "Daily Market Info"
+		return "每日大盤資訊"
 	case SubscriptionItemTopVolumeItems:
-		return "Top Volume Items"
+		return "交易量前20名"
 	default:
 		return "Default"
 	}

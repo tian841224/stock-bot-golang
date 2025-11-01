@@ -1,4 +1,4 @@
-package linebot
+package line
 
 import (
 	"fmt"
@@ -320,8 +320,8 @@ func (s *LineService) GetUserSubscriptionList(userID uint) (string, error) {
 	messageText += "🔔 已訂閱功能：\n"
 	hasActiveSubscriptions := false
 	for _, sub := range subscriptions {
-		if sub.Status == "active" && sub.Feature != nil {
-			messageText += fmt.Sprintf("• %s\n", sub.Feature.Name)
+		if sub.Status && sub.Feature != nil {
+			messageText += fmt.Sprintf("• %s\n", sub.Feature.Description)
 			hasActiveSubscriptions = true
 		}
 	}
@@ -333,7 +333,7 @@ func (s *LineService) GetUserSubscriptionList(userID uint) (string, error) {
 	messageText += "\n📈 已訂閱股票：\n"
 	if len(subscriptionStocks) > 0 {
 		for _, stock := range subscriptionStocks {
-			if stock.Status == 1 {
+			if stock.Status {
 				messageText += fmt.Sprintf("• %s\n", stock.Stock)
 			}
 		}

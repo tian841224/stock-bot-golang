@@ -1,4 +1,4 @@
-package linebot
+package line
 
 import (
 	"bytes"
@@ -223,16 +223,16 @@ func (c *LineCommandHandler) CommandRevenue(replyToken, symbol string) error {
 
 // 處理 /sub 命令 - 訂閱功能
 func (c *LineCommandHandler) CommandSubscribe(userID, replyToken, item string) error {
-	return c.updateUserSubscription(userID, replyToken, item, "active")
+	return c.updateUserSubscription(userID, replyToken, item, true)
 }
 
 // 處理 /unsub 命令 - 取消訂閱功能
 func (c *LineCommandHandler) CommandUnsubscribe(userID, replyToken, item string) error {
-	return c.updateUserSubscription(userID, replyToken, item, "inactive")
+	return c.updateUserSubscription(userID, replyToken, item, false)
 }
 
 // updateUserSubscription 更新使用者訂閱狀態
-func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item, status string) error {
+func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item string, status bool) error {
 	subscriptionItem, exists := c.subscriptionItemMap[item]
 	if !exists {
 		return c.sendMessage(replyToken, fmt.Sprintf("無效的訂閱項目: %s", item))
@@ -249,7 +249,7 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item, st
 	existingSubscription, err := c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
 	if err != nil {
 		// 如果沒有找到訂閱項目，且是要訂閱，則新增
-		if status == "active" {
+		if status {
 			if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
 				logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
 				return c.sendMessage(replyToken, "訂閱失敗，請稍後再試")
@@ -262,7 +262,7 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item, st
 
 	// 如果狀態相同，不需要更新
 	if existingSubscription.Status == status {
-		if status == "active" {
+		if status {
 			return c.sendMessage(replyToken, fmt.Sprintf("已訂閱：%s", subscriptionItem.GetName()))
 		} else {
 			return c.sendMessage(replyToken, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
@@ -275,7 +275,7 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item, st
 		return c.sendMessage(replyToken, "操作失敗，請稍後再試")
 	}
 
-	if status == "active" {
+	if status {
 		return c.sendMessage(replyToken, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
 	} else {
 		return c.sendMessage(replyToken, fmt.Sprintf("取消訂閱成功：%s", subscriptionItem.GetName()))

@@ -330,8 +330,8 @@ func (s *TgService) GetUserSubscriptionList(userID uint) (string, error) {
 	messageText += "🔔 <b>已訂閱功能：</b>\n"
 	hasActiveSubscriptions := false
 	for _, sub := range subscriptions {
-		if sub.Status == "active" && sub.Feature != nil {
-			messageText += fmt.Sprintf("• %s\n", sub.Feature.Name)
+		if sub.Status && sub.Feature != nil {
+			messageText += fmt.Sprintf("• %s\n", sub.Feature.Description)
 			hasActiveSubscriptions = true
 		}
 	}
@@ -343,7 +343,7 @@ func (s *TgService) GetUserSubscriptionList(userID uint) (string, error) {
 	messageText += "\n📈 <b>已訂閱股票：</b>\n"
 	if len(subscriptionStocks) > 0 {
 		for _, stock := range subscriptionStocks {
-			if stock.Status == 1 {
+			if stock.Status {
 				messageText += fmt.Sprintf("• %s\n", stock.Stock)
 			}
 		}

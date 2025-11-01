@@ -12,9 +12,9 @@ type SubscriptionRepository interface {
 	GetByUserID(userID uint) ([]*models.Subscription, error)
 	GetByFeatureID(featureID uint) ([]*models.Subscription, error)
 	GetByUserAndFeature(userID, featureID uint) (*models.Subscription, error)
-	GetByStatus(status string) ([]*models.Subscription, error)
+	GetByStatus(status bool) ([]*models.Subscription, error)
 	Update(subscription *models.Subscription) error
-	UpdateStatus(id uint, status string) error
+	UpdateStatus(id uint, status bool) error
 	Delete(id uint) error
 	List(offset, limit int) ([]*models.Subscription, error)
 	GetActiveSubscriptions() ([]*models.Subscription, error)
@@ -69,7 +69,7 @@ func (r *subscriptionRepository) GetByUserAndFeature(userID, featureID uint) (*m
 }
 
 // GetByStatus 根據狀態取得訂閱
-func (r *subscriptionRepository) GetByStatus(status string) ([]*models.Subscription, error) {
+func (r *subscriptionRepository) GetByStatus(status bool) ([]*models.Subscription, error) {
 	var subscriptions []*models.Subscription
 	err := r.db.Preload("User").Preload("Feature").Where("status = ?", status).Find(&subscriptions).Error
 	return subscriptions, err
@@ -81,7 +81,7 @@ func (r *subscriptionRepository) Update(subscription *models.Subscription) error
 }
 
 // UpdateStatus 更新訂閱狀態
-func (r *subscriptionRepository) UpdateStatus(id uint, status string) error {
+func (r *subscriptionRepository) UpdateStatus(id uint, status bool) error {
 	return r.db.Model(&models.Subscription{}).Where("id = ?", id).Update("status", status).Error
 }
 
@@ -100,7 +100,7 @@ func (r *subscriptionRepository) List(offset, limit int) ([]*models.Subscription
 // GetActiveSubscriptions 取得啟用的訂閱
 func (r *subscriptionRepository) GetActiveSubscriptions() ([]*models.Subscription, error) {
 	var subscriptions []*models.Subscription
-	err := r.db.Preload("User").Preload("Feature").Where("status = ?", "active").Find(&subscriptions).Error
+	err := r.db.Preload("User").Preload("Feature").Where("status = ?", true).Find(&subscriptions).Error
 	return subscriptions, err
 }
 

@@ -95,22 +95,22 @@ func (r *featureRepository) createDefaultFeatures() error {
 		{
 			Name:        "Stock Info",
 			Code:        "1",
-			Description: "Stock information feature",
+			Description: models.SubscriptionItemStockInfo.GetName(),
 		},
 		{
 			Name:        "Stock News",
 			Code:        "2",
-			Description: "Stock news feature",
+			Description: models.SubscriptionItemStockNews.GetName(),
 		},
 		{
 			Name:        "Daily Market Info",
 			Code:        "3",
-			Description: "Daily market information feature",
+			Description: models.SubscriptionItemDailyMarketInfo.GetName(),
 		},
 		{
 			Name:        "Top Volume Items",
 			Code:        "4",
-			Description: "Top 20 volume items feature",
+			Description: models.SubscriptionItemTopVolumeItems.GetName(),
 		},
 	}
 

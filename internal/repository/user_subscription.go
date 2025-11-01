@@ -13,7 +13,7 @@ type UserSubscriptionRepository interface {
 	// 訂閱項目相關
 	GetUserSubscriptionByItem(userID uint, item models.SubscriptionItem) (*models.Subscription, error)
 	AddUserSubscriptionItem(userID uint, item models.SubscriptionItem) error
-	UpdateUserSubscriptionItem(userID uint, item models.SubscriptionItem, status string) error
+	UpdateUserSubscriptionItem(userID uint, item models.SubscriptionItem, status bool) error
 	GetUserSubscriptionList(userID uint) ([]*models.Subscription, error)
 
 	// 訂閱股票相關
@@ -29,7 +29,7 @@ type userSubscriptionRepository struct {
 // UserSubscriptionStock 使用者訂閱股票資訊
 type UserSubscriptionStock struct {
 	Stock  string `json:"stock"`
-	Status int    `json:"status"`
+	Status bool   `json:"status"`
 }
 
 func NewUserSubscriptionRepository(db *gorm.DB) UserSubscriptionRepository {
@@ -74,7 +74,7 @@ func (r *userSubscriptionRepository) AddUserSubscriptionItem(userID uint, item m
 	err = r.db.Where("user_id = ? AND feature_id = ?", userID, feature.ID).First(&existingSubscription).Error
 	if err == nil {
 		// 已存在，更新狀態為啟用
-		existingSubscription.Status = "active"
+		existingSubscription.Status = true
 		return r.db.Save(&existingSubscription).Error
 	} else if err != gorm.ErrRecordNotFound {
 		return err
@@ -84,15 +84,23 @@ func (r *userSubscriptionRepository) AddUserSubscriptionItem(userID uint, item m
 	subscription := models.Subscription{
 		UserID:    userID,
 		FeatureID: feature.ID,
-		Status:    "active",
+		Status:    true,
 	}
 	return r.db.Create(&subscription).Error
 }
 
 // UpdateUserSubscriptionItem 更新使用者訂閱項目狀態
-func (r *userSubscriptionRepository) UpdateUserSubscriptionItem(userID uint, item models.SubscriptionItem, status string) error {
-	return r.db.Joins("JOIN features ON features.id = subscriptions.feature_id").
-		Where("subscriptions.user_id = ? AND features.code = ?", userID, fmt.Sprintf("%d", int(item))).
+func (r *userSubscriptionRepository) UpdateUserSubscriptionItem(userID uint, item models.SubscriptionItem, status bool) error {
+	// 先取得 feature
+	var feature models.Feature
+	itemCode := fmt.Sprintf("%d", int(item))
+	if err := r.db.Where("code = ?", itemCode).First(&feature).Error; err != nil {
+		return err
+	}
+
+	// 根據 user_id 和 feature_id 更新狀態
+	return r.db.Model(&models.Subscription{}).
+		Where("user_id = ? AND feature_id = ?", userID, feature.ID).
 		Update("status", status).Error
 }
 
@@ -107,7 +115,7 @@ func (r *userSubscriptionRepository) GetUserSubscriptionList(userID uint) ([]*mo
 func (r *userSubscriptionRepository) AddUserSubscriptionStock(userID uint, stockSymbol string) (bool, error) {
 	// 先取得股票資訊
 	var symbol models.Symbol
-	err := r.db.Where("symbol = ? ", stockSymbol).First(&symbol).Error
+	err := r.db.Where("symbol = ?", stockSymbol).First(&symbol).Error
 	if err != nil {
 		return false, err
 	}
@@ -127,7 +135,7 @@ func (r *userSubscriptionRepository) AddUserSubscriptionStock(userID uint, stock
 			subscription = models.Subscription{
 				UserID:    userID,
 				FeatureID: stockFeature.ID,
-				Status:    "active",
+				Status:    true,
 			}
 			if err := r.db.Create(&subscription).Error; err != nil {
 				return false, err
@@ -162,14 +170,14 @@ func (r *userSubscriptionRepository) AddUserSubscriptionStock(userID uint, stock
 func (r *userSubscriptionRepository) DeleteUserSubscriptionStock(userID uint, stockSymbol string) (bool, error) {
 	// 先取得股票資訊
 	var symbol models.Symbol
-	err := r.db.Where("symbol = ?  ?", stockSymbol).First(&symbol).Error
+	err := r.db.Where("symbol = ?", stockSymbol).First(&symbol).Error
 	if err != nil {
 		return false, err
 	}
 
 	// 取得股票功能
 	var stockFeature models.Feature
-	err = r.db.Where("code = ?", "股票資訊").First(&stockFeature).Error
+	err = r.db.Where("code = ?", "1").First(&stockFeature).Error
 	if err != nil {
 		return false, err
 	}
@@ -195,12 +203,12 @@ func (r *userSubscriptionRepository) GetUserSubscriptionStockList(userID uint) (
 	var results []*UserSubscriptionStock
 
 	query := `
-		SELECT s.symbol as stock, 1 as status
+		SELECT s.symbol as stock, true as status
 		FROM subscription_symbols ss
 		JOIN subscriptions sub ON sub.id = ss.subscription_id
 		JOIN symbols s ON s.id = ss.symbol_id
 		JOIN features f ON f.id = sub.feature_id
-		WHERE sub.user_id = ? AND f.code = '股票資訊' AND sub.status = 'active'
+		WHERE sub.user_id = ? AND f.code = '1' AND sub.status = true
 	`
 
 	err := r.db.Raw(query, userID).Scan(&results).Error
