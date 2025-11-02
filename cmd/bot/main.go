@@ -90,7 +90,7 @@ func main() {
 	// 建立 Telegram Bot 服務層
 	tgSvc := tgService.NewTgService(initResult.stockService, initResult.userSubscriptionRepo)
 	tgCommandHandler := tgService.NewTgCommandHandler(
-		initResult.tgBotClient.Client,
+		initResult.tgBotClient,
 		tgSvc,
 		initResult.userService,
 		initResult.userSubscriptionRepo,

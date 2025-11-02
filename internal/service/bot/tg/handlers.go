@@ -50,7 +50,7 @@ func (s *TgServiceHandler) processCommand(message *tgbotapi.Message) error {
 	_, err := s.userService.GetOrCreate(strconv.FormatInt(userID, 10), models.UserTypeTelegram)
 	if err != nil {
 		logger.Log.Error("建立或取得使用者失敗", zap.Error(err))
-		return s.commandHandler.sendMessage(userID, "系統錯誤，請稍後再試")
+		return s.commandHandler.botClient.SendMessage(userID, "系統錯誤，請稍後再試")
 	}
 
 	parts := strings.Fields(messageText)

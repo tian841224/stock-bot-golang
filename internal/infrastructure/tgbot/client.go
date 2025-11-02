@@ -3,8 +3,10 @@ package tgbot
 
 import (
 	"github.com/tian841224/stock-bot/config"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"go.uber.org/zap"
 )
 
 type TgBotClient struct {
@@ -39,4 +41,53 @@ func NewBot(cfg config.Config) (*TgBotClient, error) {
 		}
 	}
 	return &TgBotClient{Client: client}, nil
+}
+
+// SendMessage 發送訊息
+func (c *TgBotClient) SendMessage(chatID int64, text string) error {
+	msg := tgbotapi.NewMessage(chatID, text)
+	_, err := c.Client.Send(msg)
+	if err != nil {
+		logger.Log.Error("發送訊息失敗", zap.Error(err))
+	}
+	return err
+}
+
+// SendMessageWithKeyboard 發送帶有鍵盤的訊息
+func (c *TgBotClient) SendMessageWithKeyboard(chatID int64, text string, keyboard *tgbotapi.InlineKeyboardMarkup) error {
+	msg := tgbotapi.NewMessage(chatID, text)
+	if keyboard != nil {
+		msg.ReplyMarkup = keyboard
+	}
+	_, err := c.Client.Send(msg)
+	if err != nil {
+		logger.Log.Error("發送帶有鍵盤的訊息失敗", zap.Error(err))
+	}
+	return err
+}
+
+// SendMessageHTML 發送 HTML 訊息
+func (c *TgBotClient) SendMessageHTML(chatID int64, text string) error {
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ParseMode = tgbotapi.ModeHTML
+	_, err := c.Client.Send(msg)
+	if err != nil {
+		logger.Log.Error("發送 HTML 訊息失敗", zap.Error(err))
+	}
+	return err
+}
+
+// SendPhoto 發送圖片
+func (c *TgBotClient) SendPhoto(chatID int64, data []byte, caption string) error {
+	photo := tgbotapi.NewPhoto(chatID, tgbotapi.FileBytes{
+		Name:  "chart.png",
+		Bytes: data,
+	})
+	photo.Caption = caption
+	photo.ParseMode = tgbotapi.ModeHTML
+	_, err := c.Client.Send(photo)
+	if err != nil {
+		logger.Log.Error("發送圖片失敗", zap.Error(err))
+	}
+	return err
 }
