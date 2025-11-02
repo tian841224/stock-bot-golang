@@ -17,6 +17,7 @@ type SubscriptionSymbolRepository interface {
 	DeleteBySubscriptionID(subscriptionID uint) error
 	DeleteBySubscriptionAndSymbol(subscriptionID, symbolID uint) error
 	List(offset, limit int) ([]*models.SubscriptionSymbol, error)
+	GetAll(order string) ([]*models.SubscriptionSymbol, error)
 	BatchCreate(subscriptionSymbols []*models.SubscriptionSymbol) error
 	GetSymbolsBySubscriptionID(subscriptionID uint) ([]*models.Symbol, error)
 	GetSubscriptionsBySymbolID(symbolID uint) ([]*models.Subscription, error)
@@ -93,6 +94,13 @@ func (r *subscriptionSymbolRepository) DeleteBySubscriptionAndSymbol(subscriptio
 func (r *subscriptionSymbolRepository) List(offset, limit int) ([]*models.SubscriptionSymbol, error) {
 	var subscriptionSymbols []*models.SubscriptionSymbol
 	err := r.db.Preload("Subscription").Preload("Symbol").Offset(offset).Limit(limit).Find(&subscriptionSymbols).Error
+	return subscriptionSymbols, err
+}
+
+// GetAll 取得所有訂閱股票關聯
+func (r *subscriptionSymbolRepository) GetAll(order string) ([]*models.SubscriptionSymbol, error) {
+	var subscriptionSymbols []*models.SubscriptionSymbol
+	err := r.db.Preload("Subscription").Preload("Symbol").Order(order).Find(&subscriptionSymbols).Error
 	return subscriptionSymbols, err
 }
 
