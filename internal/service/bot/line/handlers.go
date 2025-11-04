@@ -40,6 +40,49 @@ func NewBotService(
 	}
 }
 
+// parseMessageArgs 解析訊息參數
+func parseMessageArgs(messageText string) (command string, arg1 string, arg2 string) {
+	parts := strings.Fields(messageText)
+	if len(parts) == 0 {
+		return "", "", ""
+	}
+
+	command = parts[0]
+	if len(parts) > 1 {
+		arg1 = parts[1]
+	}
+	if len(parts) > 2 {
+		arg2 = parts[2]
+	}
+	return command, arg1, arg2
+}
+
+// getDefaultDateForTodayPrice 取得今日股價的預設日期
+func getDefaultDateForTodayPrice() string {
+	taipeiLocation, _ := time.LoadLocation("Asia/Taipei")
+	now := time.Now().In(taipeiLocation)
+	marketOpenTime := time.Date(now.Year(), now.Month(), now.Day(), 9, 30, 0, 0, taipeiLocation)
+
+	if now.Before(marketOpenTime) {
+		return now.AddDate(0, 0, -1).Format("2006-01-02")
+	}
+	return now.Format("2006-01-02")
+}
+
+// parseMarketInfoCount 解析大盤資訊的顯示筆數
+func parseMarketInfoCount(arg1 string) int {
+	count := 1
+	if arg1 == "" {
+		return count
+	}
+
+	parsedCount, err := strconv.Atoi(arg1)
+	if err == nil && parsedCount > 0 {
+		count = parsedCount
+	}
+	return count
+}
+
 // HandleTextMessage 處理文字訊息
 func (s *lineServiceHandler) HandleTextMessage(event *linebot.Event, message *linebot.TextMessage) error {
 	if message.Text == "" {
@@ -53,95 +96,79 @@ func (s *lineServiceHandler) HandleTextMessage(event *linebot.Event, message *li
 		zap.String("user_id", userID),
 		zap.String("message", messageText))
 
-	// 確保使用者存在
 	_, err := s.userService.GetOrCreate(userID, models.UserTypeLine)
 	if err != nil {
 		logger.Log.Error("建立或取得使用者失敗", zap.Error(err))
 		return s.botClient.ReplyMessage(event.ReplyToken, "系統錯誤，請稍後再試")
 	}
 
-	parts := strings.Fields(messageText)
-	if len(parts) == 0 {
+	command, arg1, arg2 := parseMessageArgs(messageText)
+	if command == "" {
 		return nil
 	}
 
-	command := parts[0]
-	var arg1, arg2 string
-	if len(parts) > 1 {
-		arg1 = parts[1]
-	}
-	if len(parts) > 2 {
-		arg2 = parts[2]
-	}
+	return s.executeCommand(command, userID, event.ReplyToken, arg1, arg2, messageText)
+}
 
-	switch command {
-	case "/start":
-		return s.commandHandler.CommandStart(event.ReplyToken)
-	case "/k":
-		// 歷史K線圖
-		return s.commandHandler.CommandHistoricalCandles(event.ReplyToken, arg1)
-	case "/p":
-		// 績效圖表
-		return s.commandHandler.CommandPerformanceChart(event.ReplyToken, arg1)
-	case "/d":
-		// 今日股價
-		if arg2 == "" {
-			// 取得台灣時區當前時間
-			taipeiLocation, _ := time.LoadLocation("Asia/Taipei")
-			now := time.Now().In(taipeiLocation)
-
-			// 判斷是否在早上9點半之前
-			marketOpenTime := time.Date(now.Year(), now.Month(), now.Day(), 9, 30, 0, 0, taipeiLocation)
-
-			if now.Before(marketOpenTime) {
-				// 9點半前，使用前一天日期
-				arg2 = now.AddDate(0, 0, -1).Format("2006-01-02")
-			} else {
-				// 9點半後，使用當天日期
-				arg2 = now.Format("2006-01-02")
+// executeCommand 執行對應的命令
+func (s *lineServiceHandler) executeCommand(command, userID, replyToken, arg1, arg2, messageText string) error {
+	commandMap := map[string]func() error{
+		"/start": func() error {
+			return s.commandHandler.CommandStart(replyToken)
+		},
+		"/k": func() error {
+			return s.commandHandler.CommandHistoricalCandles(replyToken, arg1)
+		},
+		"/p": func() error {
+			return s.commandHandler.CommandPerformanceChart(replyToken, arg1)
+		},
+		"/d": func() error {
+			dateArg := arg2
+			if dateArg == "" {
+				dateArg = getDefaultDateForTodayPrice()
 			}
-		}
-		return s.commandHandler.CommandTodayStockPrice(event.ReplyToken, arg1, arg2)
-	case "/t":
-		// 交易量前20名
-		return s.commandHandler.CommandTopVolumeItems(event.ReplyToken)
-	case "/i":
-		// 股票資訊
-		return s.commandHandler.CommandStockInfo(event.ReplyToken, arg1, arg2)
-	case "/r":
-		// 財報
-		return s.commandHandler.CommandRevenue(event.ReplyToken, arg1)
-	case "/n":
-		// 新聞
-		return s.commandHandler.CommandNews(event.ReplyToken, arg1)
-	case "/m":
-		// 大盤資訊
-		count := 1 // 預設顯示1筆
-		if arg1 != "" {
-			if parsedCount, err := strconv.Atoi(arg1); err == nil && parsedCount > 0 {
-				count = parsedCount
-			}
-		}
-		return s.commandHandler.CommandDailyMarketInfo(event.ReplyToken, count)
-	case "/sub":
-		// 訂閱
-		return s.commandHandler.CommandSubscribe(userID, event.ReplyToken, arg1)
-	case "/unsub":
-		// 取消訂閱
-		return s.commandHandler.CommandUnsubscribe(userID, event.ReplyToken, arg1)
-	case "/add":
-		// 新增股票
-		return s.commandHandler.CommandAddStock(userID, event.ReplyToken, arg1)
-	case "/del":
-		// 刪除股票
-		return s.commandHandler.CommandDeleteStock(userID, event.ReplyToken, arg1)
-	case "/list":
-		// 訂閱清單
-		return s.commandHandler.CommandListSubscriptions(userID, event.ReplyToken)
-	case "test":
-		return s.botClient.ReplyMessage(event.ReplyToken, "新增成功")
-	default:
-		reply := "你說了: " + message.Text
-		return s.botClient.ReplyMessage(event.ReplyToken, reply)
+			return s.commandHandler.CommandTodayStockPrice(replyToken, arg1, dateArg)
+		},
+		"/t": func() error {
+			return s.commandHandler.CommandTopVolumeItems(replyToken)
+		},
+		"/i": func() error {
+			return s.commandHandler.CommandStockInfo(replyToken, arg1, arg2)
+		},
+		"/r": func() error {
+			return s.commandHandler.CommandRevenue(replyToken, arg1)
+		},
+		"/n": func() error {
+			return s.commandHandler.CommandNews(replyToken, arg1)
+		},
+		"/m": func() error {
+			count := parseMarketInfoCount(arg1)
+			return s.commandHandler.CommandDailyMarketInfo(replyToken, count)
+		},
+		"/sub": func() error {
+			return s.commandHandler.CommandSubscribe(userID, replyToken, arg1)
+		},
+		"/unsub": func() error {
+			return s.commandHandler.CommandUnsubscribe(userID, replyToken, arg1)
+		},
+		"/add": func() error {
+			return s.commandHandler.CommandAddStock(userID, replyToken, arg1)
+		},
+		"/del": func() error {
+			return s.commandHandler.CommandDeleteStock(userID, replyToken, arg1)
+		},
+		"/list": func() error {
+			return s.commandHandler.CommandListSubscriptions(userID, replyToken)
+		},
+		"test": func() error {
+			return s.botClient.ReplyMessage(replyToken, "新增成功")
+		},
 	}
+
+	if handler, exists := commandMap[command]; exists {
+		return handler()
+	}
+
+	reply := "你說了: " + messageText
+	return s.botClient.ReplyMessage(replyToken, reply)
 }
