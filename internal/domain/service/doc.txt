@@ -1,0 +1,6 @@
+Domain Service 用於處理不適合放在單一 Entity 內的業務邏輯，通常涉及：
+
+Domain Service 只定義介面，實作在 Infrastructure
+多個 Entity 之間的互動
+複雜的業務規則
+需要外部資料源的領域邏輯
