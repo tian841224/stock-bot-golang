@@ -1,0 +1,14 @@
+{
+    "editor.formatOnSave": true,
+    "go.formatTool": "goimports",
+    "go.lintTool": "golangci-lint",
+    "go.lintOnSave": "package",
+    "go.vetOnSave": "package",
+    "go.toolsManagement.autoUpdate": true,
+    "chatgpt.openOnStartup": false,
+    // "[go]": {
+    //     "editor.codeActionsOnSave": {
+    //         "source.organizeImports": "explicit"
+    //     }
+    // }
+}

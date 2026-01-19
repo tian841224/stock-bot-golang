@@ -453,7 +453,7 @@ func GeneratePerformanceLineChart(data []PerformanceData, title string) ([]byte,
 }
 
 // 生成營收圖表 (柱狀圖+折線圖組合)
-func GenerateRevenueChartPNG(data []RevenueChartData, stockName string, stockCode string) ([]byte, error) {
+func GenerateRevenueChart(data []RevenueChartData, stockName string, stockCode string) ([]byte, error) {
 
 	if len(data) == 0 {
 		return nil, fmt.Errorf("無營收資料可生成圖表")
@@ -744,7 +744,7 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string, stockCod
 }
 
 // 生成K線圖 (PNG格式)
-func GenerateCandlestickChartPNG(data []CandlestickData, stockName string, symbol string) ([]byte, error) {
+func GenerateCandlestickChart(data []CandlestickData, stockName string, symbol string) ([]byte, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("無K線資料可生成圖表")
 	}

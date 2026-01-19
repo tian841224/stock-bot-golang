@@ -3,309 +3,304 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
-	"time"
-
-	"github.com/tian841224/stock-bot/config"
-	"github.com/tian841224/stock-bot/internal/api/linebot"
-	"github.com/tian841224/stock-bot/internal/api/tgbot"
-	"github.com/tian841224/stock-bot/internal/db"
-	cnyesInfra "github.com/tian841224/stock-bot/internal/infrastructure/cnyes"
-	"github.com/tian841224/stock-bot/internal/infrastructure/finmindtrade"
-	fugleInfra "github.com/tian841224/stock-bot/internal/infrastructure/fugle"
-	"github.com/tian841224/stock-bot/internal/infrastructure/imgbb"
-	linebotInfra "github.com/tian841224/stock-bot/internal/infrastructure/linebot"
-	tgbotInfra "github.com/tian841224/stock-bot/internal/infrastructure/tgbot"
-	twseInfra "github.com/tian841224/stock-bot/internal/infrastructure/twse"
-	"github.com/tian841224/stock-bot/internal/repository"
-	lineService "github.com/tian841224/stock-bot/internal/service/bot/line"
-	tgService "github.com/tian841224/stock-bot/internal/service/bot/tg"
-	twstockService "github.com/tian841224/stock-bot/internal/service/twstock"
-	"github.com/tian841224/stock-bot/internal/service/user"
-	"github.com/tian841224/stock-bot/internal/service/user_subscription"
-	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
+	"github.com/tian841224/stock-bot/internal/application/usecase/bot"
+	healthUsecase "github.com/tian841224/stock-bot/internal/application/usecase/health"
+	"github.com/tian841224/stock-bot/internal/application/usecase/stock"
+	"github.com/tian841224/stock-bot/internal/application/usecase/user"
+	formatterAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/formatter"
+	healthAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/health"
+	marketAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/market"
+	presenterAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/presenter"
+	userSubscriptionAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/user"
+	"github.com/tian841224/stock-bot/internal/infrastructure/config"
+	linebotInfra "github.com/tian841224/stock-bot/internal/infrastructure/external/bot/line"
+	tgbotInfra "github.com/tian841224/stock-bot/internal/infrastructure/external/bot/telegram"
+	"github.com/tian841224/stock-bot/internal/infrastructure/external/imgbb"
+	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/cnyes"
+	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/finmindtrade"
+	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/fugle"
+	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/twse"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
+	database "github.com/tian841224/stock-bot/internal/infrastructure/persistence"
+	repository "github.com/tian841224/stock-bot/internal/infrastructure/persistence/postgres"
+	linebot "github.com/tian841224/stock-bot/internal/interfaces/bot/line"
+	telegram "github.com/tian841224/stock-bot/internal/interfaces/bot/telegram"
+	healthHandler "github.com/tian841224/stock-bot/internal/interfaces/health"
 )
 
-// 初始化結果結構
-type InitResult struct {
-	cfg                  *config.Config
-	log                  logger.Logger
-	userRepo             repository.UserRepository
-	symbolsRepo          repository.SymbolRepository
-	userSubscriptionRepo repository.UserSubscriptionRepository
-	fugleAPI             *fugleInfra.FugleAPI
-	finmindClient        *finmindtrade.FinmindTradeAPI
-	twseAPI              *twseInfra.TwseAPI
-	cnyesAPI             *cnyesInfra.CnyesAPI
-	imgbbClient          *imgbb.ImgBBClient
-	userService          user.UserService
-	stockService         twstockService.StockService
-	lineBotClient        *linebotInfra.LineBotClient
-	tgBotClient          *tgbotInfra.TgBotClient
-	err                  error
-}
-
 func main() {
-	// 初始化日誌
-	log, err := logger.NewLogger()
-	if err != nil {
-		panic(fmt.Sprintf("初始化日誌失敗: %v", err))
-	}
-	defer log.Sync()
-
-	// 非同步初始化
-	initResult, err := asyncInit(log)
-	if err != nil {
-		log.Panic("初始化失敗", zap.Error(err))
-	}
-
-	// 設定 Gin 模式（根據環境變數自動設定）
-	// 在 Docker 環境中，GIN_MODE 環境變數會自動設定為 release
-	ginMode := os.Getenv("GIN_MODE")
-	if ginMode == "" {
-		ginMode = "debug" // 預設為 debug 模式（開發環境）
-	}
-	gin.SetMode(ginMode)
-	log.Info("Gin 模式設定", zap.String("mode", ginMode))
-
-	// 建立 Gin 引擎與註冊路由
-	router := gin.Default()
-
-	// 健康檢查
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "ok"})
-	})
-
-	// 建立使用者訂閱服務
-	userSubscriptionService := user_subscription.NewUserSubscriptionService(initResult.userSubscriptionRepo)
-	// 建立 LINE Bot 服務層
-	lineSvc := lineService.NewLineService(initResult.stockService, userSubscriptionService, initResult.log)
-	lineCommandHandler := lineService.NewLineCommandHandler(
-		initResult.lineBotClient,
-		lineSvc,
-		initResult.userService,
-		userSubscriptionService,
-		initResult.imgbbClient,
-		initResult.log,
-	)
-	service := lineService.NewBotService(initResult.lineBotClient, lineCommandHandler, initResult.userService, initResult.log)
-	handler := linebot.NewLineBotHandler(service, initResult.lineBotClient, initResult.log)
-	linebot.RegisterRoutes(router, handler, initResult.cfg.LINE_BOT_WEBHOOK_PATH)
-
-	// 建立 Telegram Bot 服務層
-	tgSvc := tgService.NewTgService(initResult.stockService, userSubscriptionService, initResult.log)
-	tgCommandHandler := tgService.NewTgCommandHandler(
-		initResult.tgBotClient,
-		tgSvc,
-		initResult.userService,
-		userSubscriptionService,
-		initResult.log,
-	)
-	tgServiceHandler := tgService.NewTgServiceHandler(tgCommandHandler, initResult.userService, initResult.log)
-	tgHandler := tgbot.NewTgHandler(initResult.cfg, tgServiceHandler, initResult.log)
-	tgbot.RegisterRoutes(router, tgHandler, initResult.cfg.TELEGRAM_BOT_WEBHOOK_PATH)
-
-	// 從環境變數讀取埠號，預設 8080
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	server := &http.Server{
-		Addr:              ":" + port,
-		Handler:           router,
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
-	}
-
-	// 啟動伺服器（背景）
-	serverErr := make(chan error, 1)
-
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			serverErr <- err
-		}
-	}()
-	initResult.log.Info("HTTP 伺服器啟動成功")
-	initResult.log.Info("程式執行中...")
-
-	// 等待終止訊號或啟動錯誤
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-		// 繼續往下優雅關閉
-	case err := <-serverErr:
-		initResult.log.Error("啟動 HTTP 伺服器失敗", zap.Error(err))
-		// 立刻以非 0 退出，先同步日誌
-		_ = initResult.log.Sync()
-		os.Exit(1)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	shutdownErr := server.Shutdown(ctx)
-	if shutdownErr != nil {
-		initResult.log.Error("伺服器關閉失敗", zap.Error(shutdownErr))
-	}
-
-	dbErr := db.Close()
-	if dbErr != nil {
-		initResult.log.Error("資料庫關閉失敗", zap.Error(dbErr))
-	}
-
-	if shutdownErr != nil || dbErr != nil {
-		// 有關閉錯誤，用非 0 退出；先同步日誌
-		_ = initResult.log.Sync()
-		os.Exit(1)
-	}
-}
-
-// 非同步初始化函數
-func asyncInit(log logger.Logger) (*InitResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	result := &InitResult{log: log}
-	var wg sync.WaitGroup
-
-	// 載入設定
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("載入設定失敗: %v", err)
+		log.Fatalf("載入配置失敗: %v", err)
 	}
-	result.cfg = cfg
-	log.Info("設定載入成功")
+
+	// 初始化 Logger
+	appLogger, err := logger.NewLogger()
+	if err != nil {
+		log.Fatalf("初始化 Logger 失敗: %v", err)
+	}
+
+	appLogger.Info("應用程式啟動中...")
+	appLogger.Info("載入配置成功")
 
 	// 初始化資料庫
-	if err := db.InitDB(cfg); err != nil {
-		return nil, fmt.Errorf("資料庫初始化失敗: %v", err)
+	db := database.NewDatabase()
+	if err := db.Init(cfg); err != nil {
+		appLogger.Fatal("初始化資料庫失敗", logger.Error(err))
 	}
-	log.Info("資料庫初始化成功")
+	defer db.Close()
 
-	// 並行初始化 Repository
-	wg.Add(3)
-	go func() {
-		defer wg.Done()
-		result.userRepo = repository.NewUserRepository(db.GetDB())
-		log.Info("UserRepository 初始化完成")
-	}()
+	gormDB := db.GetDB()
 
-	go func() {
-		defer wg.Done()
-		result.symbolsRepo = repository.NewSymbolRepository(db.GetDB())
-		log.Info("SymbolRepository 初始化完成")
-	}()
+	// ============================================================
+	// 建立 Repository 層（Persistence）
+	// ============================================================
 
-	go func() {
-		defer wg.Done()
-		result.userSubscriptionRepo = repository.NewUserSubscriptionRepository(db.GetDB())
-		log.Info("UserSubscriptionRepository 初始化完成")
-	}()
+	appLogger.Info("初始化 Repository 層...")
+	userRepo := repository.NewPostgresUserRepository(gormDB)
+	stockSymbolRepo := repository.NewSymbolRepository(gormDB)
+	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB)
+	subscriptionRepo := repository.NewSubscriptionRepository(gormDB)
+	subscriptionSymbolRepo := repository.NewSubscriptionSymbolRepository(gormDB)
+	featureReader, _ := repository.NewFeatureRepository(gormDB)
+	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB)
+	appLogger.Info("Feature Repository 初始化成功，預設功能資料已建立")
 
-	// 並行初始化外部 API 客戶端
-	wg.Add(4)
-	go func() {
-		defer wg.Done()
-		result.fugleAPI = fugleInfra.NewFugleAPI(*cfg)
-		log.Info("FugleAPI 初始化完成")
-	}()
+	// ============================================================
+	// 建立外部服務客戶端（External Services）
+	// ============================================================
+	appLogger.Info("初始化外部服務客戶端...")
 
-	go func() {
-		defer wg.Done()
-		result.finmindClient = finmindtrade.NewFinmindTradeAPI(*cfg)
-		log.Info("FinmindTradeAPI 初始化完成")
-	}()
-
-	go func() {
-		defer wg.Done()
-		result.twseAPI = twseInfra.NewTwseAPI()
-		log.Info("TwseAPI 初始化完成")
-	}()
-
-	go func() {
-		defer wg.Done()
-		result.cnyesAPI = cnyesInfra.NewCnyesAPI()
-		log.Info("CnyesAPI 初始化完成")
-	}()
-
-	// 初始化 ImgBB 客戶端（條件性）
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if cfg.IMGBB_API_KEY != "" {
-			result.imgbbClient = imgbb.NewImgBBClient(cfg.IMGBB_API_KEY)
-			log.Info("ImgBB 客戶端初始化成功")
-		} else {
-			log.Warn("IMGBB_API_KEY 未設定，圖片上傳功能將不可用")
-		}
-	}()
-
-	// 並行初始化 Bot 客戶端
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		botClient, err := linebotInfra.NewBot(*cfg, log)
-		if err != nil {
-			result.err = fmt.Errorf("初始化 LINE Bot 失敗: %v", err)
-			return
-		}
-		result.lineBotClient = botClient
-		log.Info("LINE Bot 客戶端初始化完成")
-	}()
-
-	go func() {
-		defer wg.Done()
-		botClient, err := tgbotInfra.NewBot(*cfg, log)
-		if err != nil {
-			result.err = fmt.Errorf("初始化 Telegram Bot 失敗: %v", err)
-			return
-		}
-		result.tgBotClient = botClient
-		log.Info("Telegram Bot 客戶端初始化完成")
-	}()
-
-	// 等待所有並行初始化完成
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// 所有初始化完成
-	case <-ctx.Done():
-		return nil, fmt.Errorf("初始化超時: %v", ctx.Err())
+	// Telegram Bot 客戶端
+	appLogger.Info("初始化 Telegram Bot 客戶端...")
+	tgClient, err := tgbotInfra.NewBot(*cfg, appLogger)
+	if err != nil {
+		appLogger.Fatal("建立 Telegram Bot 客戶端失敗", logger.Error(err))
 	}
+	appLogger.Info("Telegram Bot 客戶端初始化成功")
 
-	// 檢查是否有錯誤
-	if result.err != nil {
-		return nil, result.err
+	// LINE Bot 客戶端
+	appLogger.Info("初始化 LINE Bot 客戶端...")
+	lineClient, err := linebotInfra.NewBot(*cfg, appLogger)
+	if err != nil {
+		appLogger.Fatal("建立 LINE Bot 客戶端失敗", logger.Error(err))
 	}
+	appLogger.Info("LINE Bot 客戶端初始化成功")
 
-	// 初始化服務（依賴前面的結果）
-	result.userService = user.NewUserService(result.userRepo)
-	result.stockService = twstockService.NewStockService(
-		result.finmindClient,
-		result.twseAPI,
-		result.cnyesAPI,
-		result.fugleAPI,
-		result.symbolsRepo,
-		log,
+	// 圖片上傳服務
+	appLogger.Info("初始化外部服務客戶端...")
+	imgbbClient := imgbb.NewImgBBClient(cfg.IMGBB_API_KEY)
+
+	// 股票 API 客戶端
+	fugleAPI := fugle.NewFugleAPI(*cfg)
+	twseAPI := twse.NewTwseAPI()
+	cnyesAPI := cnyes.NewCnyesAPI()
+	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
+	appLogger.Info("外部服務客戶端初始化成功")
+
+	// ============================================================
+	// 建立 Adapter 層（Gateway/Presenter）
+	// ============================================================
+	appLogger.Info("初始化 Adapter 層...")
+	// Validation Gateway
+	validationGateway := presenterAdapter.NewValidationGateway(nil, stockSymbolRepo)
+
+	// User Subscription Gateway
+	userSubscriptionGateway := userSubscriptionAdapter.NewUserSubscriptionGateway(
+		subscriptionRepo,
+		subscriptionSymbolRepo,
+		stockSymbolRepo,
+		subscriptionRepo,
+		subscriptionSymbolRepo,
+		featureReader,
+		userRepo,
 	)
 
-	log.Info("所有初始化完成")
-	return result, nil
+	// Market Data Gateway
+	marketDataGateway := marketAdapter.NewMarketDataGateway(
+		twseAPI,
+		cnyesAPI,
+		fugleAPI,
+		finmindAPI,
+		validationGateway,
+		tradeDateRepo,
+	)
+
+	// Market Chart Gateway
+	marketChartGateway := marketAdapter.NewMarketChartGateway(
+		marketDataGateway,
+		validationGateway,
+		fugleAPI,
+	)
+
+	// Formatter Adapter
+	telegramFormatter := formatterAdapter.NewTelegramFormatter()
+	lineFormatter := formatterAdapter.NewLineFormatter()
+	formatterGateway := formatterAdapter.NewFormatterAdapter(
+		marketChartGateway,
+		validationGateway,
+		telegramFormatter,
+		lineFormatter,
+	)
+	appLogger.Info("Adapter 層初始化成功")
+
+	// ============================================================
+	// 建立 Application 層（Use Cases）
+	// ============================================================
+	appLogger.Info("初始化 Use Case 層...")
+	// Stock Use Cases
+	marketDataUsecase := stock.NewMarketDataUsecase(
+		marketDataGateway,
+		validationGateway,
+		tradeDateRepo,
+		appLogger,
+	)
+
+	marketChartUsecase := stock.NewMarketDataChartUsecase(
+		marketChartGateway,
+		validationGateway,
+		appLogger,
+	)
+
+	// User Subscription Use Case
+	userSubscriptionUsecase := user.NewUserSubscriptionUsecase(
+		userRepo,                // UserAccountPort
+		userSubscriptionGateway, // UserSubscriptionPort
+		validationGateway,       // ValidationPort
+	)
+
+	// Bot Command Use Case
+	botCommandUsecase := bot.NewBotCommandUsecase(
+		formatterGateway,
+		marketDataUsecase,
+		marketChartUsecase,
+		userSubscriptionUsecase,
+	)
+
+	// Health Check Use Case
+	healthChecker := healthAdapter.NewHealthChecker(gormDB, finmindAPI, fugleAPI, syncMetadataRepo)
+	healthUsecaseInstance := healthUsecase.NewHealthCheckUsecase(healthChecker, "stock-bot", "1.0.0", appLogger)
+
+	// Bot Platform Use Cases
+	tgCommandUsecase := bot.NewTgBotCommandUsecase(
+		formatterGateway,
+		botCommandUsecase,
+		marketDataUsecase,
+		userRepo,
+		tgClient,
+		appLogger,
+	)
+
+	lineCommandUsecase := bot.NewLineBotCommandUsecase(
+		botCommandUsecase,
+		lineClient,
+		imgbbClient,
+	)
+	appLogger.Info("Use Case 層初始化成功")
+
+	// ============================================================
+	// 建立 Interfaces 層（Message Processors）
+	// ============================================================
+	appLogger.Info("初始化 Message Processor 層...")
+	tgProcessor := bot.NewTelegramMessageProcessor(
+		tgCommandUsecase,
+		userRepo,
+		tgClient,
+		appLogger,
+	)
+
+	lineProcessor := bot.NewLineMessageProcessor(
+		lineCommandUsecase,
+		userRepo,
+		lineClient,
+		appLogger,
+	)
+	appLogger.Info("Message Processor 層初始化成功")
+
+	// ============================================================
+	// 啟動 Web 服務器（HTTP Handlers）
+	// ============================================================
+	appLogger.Info("正在啟動 Web 服務器...")
+
+	// 建立 Gin Router
+	router, err := setupRouter(cfg, tgProcessor, lineProcessor, lineClient, healthUsecaseInstance, appLogger)
+	if err != nil {
+		appLogger.Fatal("設定路由失敗", logger.Error(err))
+	}
+
+	appLogger.Info("Web 服務器已啟動，監聽端口: 8080")
+	appLogger.Info("Telegram Webhook 路徑: " + cfg.TELEGRAM_BOT_WEBHOOK_PATH)
+	appLogger.Info("LINE Webhook 路徑: " + cfg.LINE_BOT_WEBHOOK_PATH)
+
+	// 在 goroutine 中啟動服務器
+	go func() {
+		if err := router.Run(":8080"); err != nil {
+			appLogger.Fatal("HTTP 服務器啟動失敗", logger.Error(err))
+		}
+	}()
+
+	// ============================================================
+	// 優雅關閉
+	// ============================================================
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	appLogger.Info("正在關閉應用程式...")
+
+	// 清理資源
+	ctx := context.Background()
+	_ = ctx // 用於優雅關閉的 context
+
+	appLogger.Info("應用程式已關閉")
+}
+
+// setupRouter 設定 HTTP 路由
+func setupRouter(
+	cfg *config.Config,
+	tgProcessor *bot.TelegramMessageProcessor,
+	lineProcessor *bot.LineMessageProcessor,
+	lineClient *linebotInfra.LineBotClient,
+	healthUsecase healthUsecase.HealthCheckUsecase,
+	log logger.Logger,
+) (*gin.Engine, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("配置不能為空")
+	}
+	if tgProcessor == nil {
+		return nil, fmt.Errorf("Telegram 處理器不能為空")
+	}
+	if lineProcessor == nil {
+		return nil, fmt.Errorf("LINE 處理器不能為空")
+	}
+	if lineClient == nil {
+		return nil, fmt.Errorf("LINE 客戶端不能為空")
+	}
+	if log == nil {
+		return nil, fmt.Errorf("Logger 不能為空")
+	}
+
+	router := gin.Default()
+
+	// 健康檢查端點
+	healthHandlerInstance := healthHandler.NewHealthHandler(healthUsecase, log)
+	router.GET("/health", healthHandlerInstance.HealthCheck)
+
+	// Telegram Webhook
+	tgHandler := telegram.NewTgHandler(cfg, tgProcessor, log)
+	telegram.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
+	log.Info("Telegram Webhook 路由註冊成功")
+
+	// LINE Webhook
+	lineHandler := linebot.NewLineBotHandler(lineClient, lineProcessor, log)
+	linebot.RegisterRoutes(router, lineHandler, cfg.LINE_BOT_WEBHOOK_PATH)
+	log.Info("LINE Webhook 路由註冊成功")
+
+	return router, nil
 }

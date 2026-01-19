@@ -1,0 +1,95 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Bot",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/bot",
+            "output": "${workspaceFolder}/cmd/__debug_bot.exe",
+            "cwd": "${workspaceFolder}",
+            // "env": {
+            //     "DB_HOST": "127.0.0.1",
+            //     "DB_PORT": "5432",
+            //     "DB_USER": "admin",
+            //     "DB_PASSWORD": "admin123",
+            //     "DB_NAME": "stock_bot_go",
+            //     "DB_LOG": "true"
+            // }
+        },
+        {
+            "name": "Launch Sync Stock Info",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/sync_stock_info",
+            "output": "${workspaceFolder}/cmd/__debug_sync_stock_info.exe",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Launch Scheduler",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/scheduler",
+            "output": "${workspaceFolder}/cmd/__debug_scheduler.exe",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Docker: Start All Services",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/.vscode/docker-tasks.js",
+            "args": [
+                "start-all"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Docker: Start Bot Only",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/.vscode/docker-tasks.js",
+            "args": [
+                "start-bot"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Docker: Start Debug Mode",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/.vscode/docker-tasks.js",
+            "args": [
+                "start-debug"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Docker: Stop All Services",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/.vscode/docker-tasks.js",
+            "args": [
+                "stop-all"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Docker: View Logs",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/.vscode/docker-tasks.js",
+            "args": [
+                "logs"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

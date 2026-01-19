@@ -2,55 +2,61 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/tian841224/stock-bot/config"
-	"github.com/tian841224/stock-bot/internal/db"
-	"github.com/tian841224/stock-bot/internal/infrastructure/finmindtrade"
-	"github.com/tian841224/stock-bot/internal/repository"
-	"github.com/tian841224/stock-bot/internal/service/stock_sync"
-	"github.com/tian841224/stock-bot/pkg/logger"
-
-	"go.uber.org/zap"
+	"github.com/gin-gonic/gin"
+	healthUsecase "github.com/tian841224/stock-bot/internal/application/usecase/health"
+	"github.com/tian841224/stock-bot/internal/application/usecase/stock_sync"
+	healthAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/health"
+	stock "github.com/tian841224/stock-bot/internal/infrastructure/adapter/stock"
+	"github.com/tian841224/stock-bot/internal/infrastructure/config"
+	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/finmindtrade"
+	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/fugle"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
+	database "github.com/tian841224/stock-bot/internal/infrastructure/persistence"
+	repository "github.com/tian841224/stock-bot/internal/infrastructure/persistence/postgres"
+	healthHandler "github.com/tian841224/stock-bot/internal/interfaces/health"
 )
 
 func main() {
-	// 初始化日誌
-	log, err := logger.NewLogger()
-	if err != nil {
-		panic(fmt.Sprintf("初始化日誌失敗: %v", err))
-	}
-	defer log.Sync()
-
-	log.Info("=== 股票資料同步程式啟動 ===")
-
-	// 載入設定
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Panic("載入設定失敗", zap.Error(err))
+		log.Fatalf("載入配置失敗: %v", err)
 	}
-	log.Info("設定載入成功")
+
+	// 初始化 Logger
+	appLogger, err := logger.NewLogger()
+	if err != nil {
+		log.Fatalf("初始化 Logger 失敗: %v", err)
+	}
+
+	appLogger.Info("應用程式啟動中...")
+	appLogger.Info("載入配置成功")
 
 	// 初始化資料庫
-	if err := db.InitDB(cfg); err != nil {
-		log.Panic("資料庫初始化失敗", zap.Error(err))
+	db := database.NewDatabase()
+	if err := db.Init(cfg); err != nil {
+		appLogger.Fatal("初始化資料庫失敗", logger.Error(err))
 	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Error("資料庫關閉失敗", zap.Error(err))
-		}
-	}()
-	log.Info("資料庫初始化成功")
+	defer db.Close()
 
-	// 初始化 Repository 和 Service
-	symbolsRepo := repository.NewSymbolRepository(db.GetDB())
-	finmindClient := finmindtrade.NewFinmindTradeAPI(*cfg)
-	stockSyncService := stock_sync.NewStockSyncService(symbolsRepo, finmindClient, log)
-	log.Info("服務初始化成功")
+	gormDB := db.GetDB()
+
+	stockSymbolRepo := repository.NewSymbolRepository(gormDB)
+	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB)
+	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
+	fugleAPI := fugle.NewFugleAPI(*cfg)
+	stockInfoProvider := stock.NewFinmindStockInfoAdapter(finmindAPI)
+	stockSyncUsecase := stock_sync.NewStockSyncUsecase(stockSymbolRepo, stockInfoProvider, syncMetadataRepo, appLogger)
+
+	healthChecker := healthAdapter.NewHealthChecker(gormDB, finmindAPI, fugleAPI, syncMetadataRepo)
+	healthUsecaseInstance := healthUsecase.NewHealthCheckUsecase(healthChecker, "stock-sync", "1.0.0", appLogger)
+
+	appLogger.Info("服務初始化成功")
 
 	// 建立 context 用於優雅關閉
 	ctx, cancel := context.WithCancel(context.Background())
@@ -61,63 +67,72 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// 啟動背景同步服務
-	go runBackgroundSync(ctx, stockSyncService, log)
+	go runBackgroundSync(ctx, stockSyncUsecase, appLogger)
+
+	// 啟動健康檢查 HTTP 服務器
+	go func() {
+		router := gin.Default()
+		healthHandlerInstance := healthHandler.NewHealthHandler(healthUsecaseInstance, appLogger)
+		router.GET("/health", healthHandlerInstance.HealthCheck)
+
+		appLogger.Info("健康檢查服務器啟動，監聽端口: 8081")
+		if err := router.Run(":8081"); err != nil {
+			appLogger.Error("健康檢查服務器啟動失敗", logger.Error(err))
+		}
+	}()
 
 	// 等待中斷信號
 	<-quit
-	log.Info("收到關閉信號，正在優雅關閉...")
+	appLogger.Info("收到關閉信號，正在優雅關閉...")
 
 	// 取消 context，停止背景任務
 	cancel()
 
-	log.Info("=== 程式已關閉 ===")
+	appLogger.Info("=== 程式已關閉 ===")
 }
 
-// runBackgroundSync 執行背景同步任務
-func runBackgroundSync(ctx context.Context, stockSyncService stock_sync.StockSyncService, log logger.Logger) {
+func runBackgroundSync(ctx context.Context, stockSyncUsecase stock_sync.StockSyncUsecase, appLogger logger.Logger) {
 	defer func() {
-		log.Info("背景同步任務已完全停止")
+		appLogger.Info("背景同步任務已完全停止")
 	}()
 
-	// 程式啟動時立即執行一次同步
-	log.Info("執行初始同步...")
-	if err := stockSyncService.SyncTaiwanStockInfo(); err != nil {
-		log.Error("初始同步失敗", zap.Error(err))
+	appLogger.Info("執行初始同步...")
+	if err := stockSyncUsecase.SyncTaiwanStockInfo(ctx); err != nil {
+		appLogger.Error("台股同步失敗", logger.Error(err))
 	}
-	log.Info("台股同步完成")
-	if err := stockSyncService.SyncUSStockInfo(); err != nil {
-		log.Error("初始同步失敗", zap.Error(err))
-	}
-	log.Info("美股同步完成")
+	appLogger.Info("台股同步完成")
 
-	// 顯示同步統計
-	if stats, err := stockSyncService.GetSyncStats(); err == nil {
-		log.Info("初始同步統計", zap.Any("stats", stats))
+	if err := stockSyncUsecase.SyncUSStockInfo(ctx); err != nil {
+		appLogger.Error("美股同步失敗", logger.Error(err))
+	}
+	appLogger.Info("美股同步完成")
+
+	if stats, err := stockSyncUsecase.GetSyncStats(ctx); err == nil {
+		appLogger.Info("初始同步統計", logger.Any("stats", stats))
 	}
 
-	// 建立定時器
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info("收到停止信號，背景同步任務正在關閉...")
+			appLogger.Info("收到停止信號，背景同步任務正在關閉...")
 			return
 		case <-ticker.C:
-			log.Info("開始定時同步...")
-			if err := stockSyncService.SyncTaiwanStockInfo(); err != nil {
-				log.Error("初始同步失敗", zap.Error(err))
+			appLogger.Info("開始定時同步...")
+			if err := stockSyncUsecase.SyncTaiwanStockInfo(ctx); err != nil {
+				appLogger.Error("台股同步失敗", logger.Error(err))
 			}
-			log.Info("台股同步完成")
-			if err := stockSyncService.SyncUSStockInfo(); err != nil {
-				log.Error("初始同步失敗", zap.Error(err))
-			}
-			log.Info("美股同步完成")
+			appLogger.Info("台股同步完成")
 
-			// 顯示同步統計
-			if stats, err := stockSyncService.GetSyncStats(); err == nil {
-				log.Info("初始同步統計", zap.Any("stats", stats))
+			if err := stockSyncUsecase.SyncUSStockInfo(ctx); err != nil {
+				appLogger.Error("美股同步失敗", logger.Error(err))
+			}
+			appLogger.Info("美股同步完成")
+
+			if stats, err := stockSyncUsecase.GetSyncStats(ctx); err == nil {
+				appLogger.Info("定時同步統計", logger.Any("stats", stats))
 			}
 		}
 	}
