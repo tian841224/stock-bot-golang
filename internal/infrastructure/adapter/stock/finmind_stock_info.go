@@ -3,10 +3,12 @@ package stock
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/tian841224/stock-bot/internal/application/port"
 	"github.com/tian841224/stock-bot/internal/domain/entity"
 	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/finmindtrade"
+	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/finmindtrade/dto"
 )
 
 type finmindStockInfoAdapter struct {
@@ -65,4 +67,27 @@ func (a *finmindStockInfoAdapter) GetUSStockInfo(ctx context.Context) ([]*entity
 	}
 
 	return symbols, nil
+}
+
+func (a *finmindStockInfoAdapter) GetTaiwanStockTradingDate(ctx context.Context) ([]*entity.TradeDate, error) {
+	response, err := a.finmindAPI.GetTaiwanStockTradingDate(dto.FinmindtradeRequestDto{
+	})
+	if err != nil {
+		return nil, fmt.Errorf("呼叫 FinMind API 失敗: %w", err)
+	}
+
+	tradeDates := make([]*entity.TradeDate, 0, len(response.Data))
+	for _, td := range response.Data {
+		parsedDate, err := time.Parse("2006-01-02", td.Date)
+		if err != nil {
+			return nil, fmt.Errorf("解析日期失敗: %w", err)
+		}
+		tradeDate := &entity.TradeDate{
+			Date:     parsedDate,
+			Exchange: "TW",
+		}
+		tradeDates = append(tradeDates, tradeDate)
+	}
+
+	return tradeDates, nil
 }

@@ -48,10 +48,11 @@ func main() {
 
 	stockSymbolRepo := repository.NewSymbolRepository(gormDB)
 	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB)
+	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB)
 	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
 	fugleAPI := fugle.NewFugleAPI(*cfg)
 	stockInfoProvider := stock.NewFinmindStockInfoAdapter(finmindAPI)
-	stockSyncUsecase := stock_sync.NewStockSyncUsecase(stockSymbolRepo, stockInfoProvider, syncMetadataRepo, appLogger)
+	stockSyncUsecase := stock_sync.NewStockSyncUsecase(stockSymbolRepo, stockInfoProvider, syncMetadataRepo, tradeDateRepo, appLogger)
 
 	healthChecker := healthAdapter.NewHealthChecker(gormDB, finmindAPI, fugleAPI, syncMetadataRepo)
 	healthUsecaseInstance := healthUsecase.NewHealthCheckUsecase(healthChecker, "stock-sync", "1.0.0", appLogger)
@@ -110,6 +111,12 @@ func runBackgroundSync(ctx context.Context, stockSyncUsecase stock_sync.StockSyn
 	if stats, err := stockSyncUsecase.GetSyncStats(ctx); err == nil {
 		appLogger.Info("初始同步統計", logger.Any("stats", stats))
 	}
+
+	err := stockSyncUsecase.SyncTaiwanStockTradingDate(ctx)
+	if err != nil {
+		appLogger.Error("取得台股交易日失敗", logger.Error(err))
+	}
+	appLogger.Info("台股交易日同步完成")
 
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()

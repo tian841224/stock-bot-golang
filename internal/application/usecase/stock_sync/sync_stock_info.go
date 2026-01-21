@@ -7,12 +7,13 @@ import (
 
 	"github.com/tian841224/stock-bot/internal/application/port"
 	"github.com/tian841224/stock-bot/internal/domain/entity"
-	"github.com/tian841224/stock-bot/internal/infrastructure/logging"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 )
 
 type StockSyncUsecase interface {
 	SyncTaiwanStockInfo(ctx context.Context) error
 	SyncUSStockInfo(ctx context.Context) error
+	SyncTaiwanStockTradingDate(ctx context.Context) error
 	GetSyncStats(ctx context.Context) (map[string]int, error)
 }
 
@@ -20,6 +21,7 @@ type stockSyncUsecase struct {
 	stockSymbolRepo   port.StockSymbolRepository
 	stockInfoProvider port.StockInfoProvider
 	syncMetadataRepo  port.SyncMetadataRepository
+	tradeDateRepo     port.TradeDateRepository
 	logger            logger.Logger
 }
 
@@ -27,12 +29,14 @@ func NewStockSyncUsecase(
 	stockSymbolRepo port.StockSymbolRepository,
 	stockInfoProvider port.StockInfoProvider,
 	syncMetadataRepo port.SyncMetadataRepository,
+	tradeDateRepo port.TradeDateRepository,
 	log logger.Logger,
 ) StockSyncUsecase {
 	return &stockSyncUsecase{
 		stockSymbolRepo:   stockSymbolRepo,
 		stockInfoProvider: stockInfoProvider,
 		syncMetadataRepo:  syncMetadataRepo,
+		tradeDateRepo:     tradeDateRepo,
 		logger:            log,
 	}
 }
@@ -93,6 +97,29 @@ func (s *stockSyncUsecase) SyncUSStockInfo(ctx context.Context) error {
 		logger.Int("總計", len(symbols)))
 
 	s.updateSyncMetadata(ctx, "US", &now, &now, successCount, "")
+
+	return nil
+}
+
+func (s *stockSyncUsecase) SyncTaiwanStockTradingDate(ctx context.Context) error {
+	s.logger.Info("開始同步台股交易日...")
+
+	tradeDates, err := s.stockInfoProvider.GetTaiwanStockTradingDate(ctx)
+	if err != nil {
+		s.logger.Error("取得台股交易日失敗", logger.Error(err))
+		return err
+	}
+
+	s.logger.Info("成功取得交易日", logger.Int("count", len(tradeDates)))
+
+	err = s.tradeDateRepo.BatchCreateTradeDates(ctx, tradeDates)
+	if err != nil {
+		s.logger.Error("批次更新交易日失敗", logger.Error(err))
+		return err
+	}
+
+	s.logger.Info("交易日同步完成",
+		logger.Int("總計", len(tradeDates)))
 
 	return nil
 }

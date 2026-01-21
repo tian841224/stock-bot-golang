@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/tian841224/stock-bot/internal/domain/entity"
 	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
@@ -61,8 +62,9 @@ func (m *mockStockSymbolRepo) BatchUpsert(ctx context.Context, symbols []*entity
 }
 
 type mockStockInfoProvider struct {
-	getTaiwanStockInfoFunc func(ctx context.Context) ([]*entity.StockSymbol, error)
-	getUSStockInfoFunc     func(ctx context.Context) ([]*entity.StockSymbol, error)
+	getTaiwanStockInfoFunc        func(ctx context.Context) ([]*entity.StockSymbol, error)
+	getUSStockInfoFunc            func(ctx context.Context) ([]*entity.StockSymbol, error)
+	getTaiwanStockTradingDateFunc func(ctx context.Context) ([]*entity.TradeDate, error)
 }
 
 func (m *mockStockInfoProvider) GetTaiwanStockInfo(ctx context.Context) ([]*entity.StockSymbol, error) {
@@ -75,6 +77,13 @@ func (m *mockStockInfoProvider) GetTaiwanStockInfo(ctx context.Context) ([]*enti
 func (m *mockStockInfoProvider) GetUSStockInfo(ctx context.Context) ([]*entity.StockSymbol, error) {
 	if m.getUSStockInfoFunc != nil {
 		return m.getUSStockInfoFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (m *mockStockInfoProvider) GetTaiwanStockTradingDate(ctx context.Context) ([]*entity.TradeDate, error) {
+	if m.getTaiwanStockTradingDateFunc != nil {
+		return m.getTaiwanStockTradingDateFunc(ctx)
 	}
 	return nil, nil
 }
@@ -94,6 +103,49 @@ func (m *mockSyncMetadataRepo) GetByMarket(ctx context.Context, market string) (
 func (m *mockSyncMetadataRepo) Upsert(ctx context.Context, metadata *entity.SyncMetadata) error {
 	if m.upsertFunc != nil {
 		return m.upsertFunc(ctx, metadata)
+	}
+	return nil
+}
+
+type mockTradeDateRepository struct {
+	getByIDFunc               func(ctx context.Context, id uint) (*entity.TradeDate, error)
+	getByDateFunc             func(ctx context.Context, date time.Time) (*entity.TradeDate, error)
+	getByDateRangeFunc        func(ctx context.Context, startDate, endDate time.Time) ([]*entity.TradeDate, error)
+	createFunc                func(ctx context.Context, tradeDate *entity.TradeDate) error
+	batchCreateTradeDatesFunc func(ctx context.Context, tradeDates []*entity.TradeDate) error
+}
+
+func (m *mockTradeDateRepository) GetByID(ctx context.Context, id uint) (*entity.TradeDate, error) {
+	if m.getByIDFunc != nil {
+		return m.getByIDFunc(ctx, id)
+	}
+	return nil, nil
+}
+
+func (m *mockTradeDateRepository) GetByDate(ctx context.Context, date time.Time) (*entity.TradeDate, error) {
+	if m.getByDateFunc != nil {
+		return m.getByDateFunc(ctx, date)
+	}
+	return nil, nil
+}
+
+func (m *mockTradeDateRepository) GetByDateRange(ctx context.Context, startDate, endDate time.Time) ([]*entity.TradeDate, error) {
+	if m.getByDateRangeFunc != nil {
+		return m.getByDateRangeFunc(ctx, startDate, endDate)
+	}
+	return nil, nil
+}
+
+func (m *mockTradeDateRepository) Create(ctx context.Context, tradeDate *entity.TradeDate) error {
+	if m.createFunc != nil {
+		return m.createFunc(ctx, tradeDate)
+	}
+	return nil
+}
+
+func (m *mockTradeDateRepository) BatchCreateTradeDates(ctx context.Context, tradeDates []*entity.TradeDate) error {
+	if m.batchCreateTradeDatesFunc != nil {
+		return m.batchCreateTradeDatesFunc(ctx, tradeDates)
 	}
 	return nil
 }
@@ -125,7 +177,8 @@ func TestStockSyncUsecase_SyncTaiwanStockInfo_Success(t *testing.T) {
 	}
 
 	mockSyncRepo := &mockSyncMetadataRepo{}
-	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, &mockLogger{})
+	mockTradeDateRepo := &mockTradeDateRepository{}
+	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, mockTradeDateRepo, &mockLogger{})
 
 	err := usecase.SyncTaiwanStockInfo(context.Background())
 	if err != nil {
@@ -142,7 +195,8 @@ func TestStockSyncUsecase_SyncTaiwanStockInfo_ProviderError(t *testing.T) {
 	}
 
 	mockSyncRepo := &mockSyncMetadataRepo{}
-	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, &mockLogger{})
+	mockTradeDateRepo := &mockTradeDateRepository{}
+	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, mockTradeDateRepo, &mockLogger{})
 
 	err := usecase.SyncTaiwanStockInfo(context.Background())
 	if err == nil {
@@ -167,7 +221,8 @@ func TestStockSyncUsecase_SyncUSStockInfo_Success(t *testing.T) {
 	}
 
 	mockSyncRepo := &mockSyncMetadataRepo{}
-	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, &mockLogger{})
+	mockTradeDateRepo := &mockTradeDateRepository{}
+	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, mockTradeDateRepo, &mockLogger{})
 
 	err := usecase.SyncUSStockInfo(context.Background())
 	if err != nil {
@@ -184,7 +239,8 @@ func TestStockSyncUsecase_SyncUSStockInfo_ProviderError(t *testing.T) {
 	}
 
 	mockSyncRepo := &mockSyncMetadataRepo{}
-	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, &mockLogger{})
+	mockTradeDateRepo := &mockTradeDateRepository{}
+	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, mockTradeDateRepo, &mockLogger{})
 
 	err := usecase.SyncUSStockInfo(context.Background())
 	if err == nil {
@@ -206,7 +262,8 @@ func TestStockSyncUsecase_GetSyncStats_Success(t *testing.T) {
 	mockProvider := &mockStockInfoProvider{}
 
 	mockSyncRepo := &mockSyncMetadataRepo{}
-	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, &mockLogger{})
+	mockTradeDateRepo := &mockTradeDateRepository{}
+	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, mockTradeDateRepo, &mockLogger{})
 
 	stats, err := usecase.GetSyncStats(context.Background())
 	if err != nil {
@@ -245,7 +302,8 @@ func TestStockSyncUsecase_AsyncBatchUpsert_PartialFailure(t *testing.T) {
 	}
 
 	mockSyncRepo := &mockSyncMetadataRepo{}
-	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, &mockLogger{})
+	mockTradeDateRepo := &mockTradeDateRepository{}
+	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, mockTradeDateRepo, &mockLogger{})
 
 	err := usecase.SyncTaiwanStockInfo(context.Background())
 	if err != nil {
@@ -275,7 +333,8 @@ func TestStockSyncUsecase_AsyncBatchUpsert_ContextCancellation(t *testing.T) {
 	}
 
 	mockSyncRepo := &mockSyncMetadataRepo{}
-	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, &mockLogger{})
+	mockTradeDateRepo := &mockTradeDateRepository{}
+	usecase := NewStockSyncUsecase(mockRepo, mockProvider, mockSyncRepo, mockTradeDateRepo, &mockLogger{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -290,10 +349,12 @@ func TestStockSyncUsecase_SplitIntoBatches(t *testing.T) {
 	mockRepo := &mockStockSymbolRepo{}
 	mockProvider := &mockStockInfoProvider{}
 	mockSyncRepo := &mockSyncMetadataRepo{}
+	mockTradeDateRepo := &mockTradeDateRepository{}
 	usecase := &stockSyncUsecase{
 		stockSymbolRepo:   mockRepo,
 		stockInfoProvider: mockProvider,
 		syncMetadataRepo:  mockSyncRepo,
+		tradeDateRepo:     mockTradeDateRepo,
 		logger:            &mockLogger{},
 	}
 

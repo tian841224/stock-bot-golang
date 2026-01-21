@@ -135,6 +135,7 @@ type FeatureWriter interface {
 type StockInfoProvider interface {
 	GetTaiwanStockInfo(ctx context.Context) ([]*entity.StockSymbol, error)
 	GetUSStockInfo(ctx context.Context) ([]*entity.StockSymbol, error)
+	GetTaiwanStockTradingDate(ctx context.Context) ([]*entity.TradeDate, error)
 }
 
 // SyncMetadataRepository 定義同步元資料資料存取介面
