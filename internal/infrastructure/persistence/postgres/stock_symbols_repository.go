@@ -6,20 +6,26 @@ import (
 
 	repo "github.com/tian841224/stock-bot/internal/application/port"
 	"github.com/tian841224/stock-bot/internal/domain/entity"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 	models "github.com/tian841224/stock-bot/internal/infrastructure/persistence/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type postgresStockSymbolsRepository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger logger.Logger
 }
 
 var _ repo.StockSymbolReader = (*postgresStockSymbolsRepository)(nil)
 var _ repo.StockSymbolWriter = (*postgresStockSymbolsRepository)(nil)
 
-func NewSymbolRepository(db *gorm.DB) *postgresStockSymbolsRepository {
-	return &postgresStockSymbolsRepository{db: db}
+func NewSymbolRepository(db *gorm.DB, log logger.Logger) *postgresStockSymbolsRepository {
+	return &postgresStockSymbolsRepository{
+		db:     db,
+		logger: log,
+	}
 }
 
 // GetByID 根據 ID 取得股票代號
@@ -27,11 +33,10 @@ func (r *postgresStockSymbolsRepository) GetByID(ctx context.Context, id uint) (
 	var symbol models.StockSymbol
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&symbol).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, err
-	}
-
-	if err == gorm.ErrRecordNotFound {
-		return nil, nil
 	}
 
 	return &entity.StockSymbol{
@@ -47,11 +52,10 @@ func (r *postgresStockSymbolsRepository) GetBySymbolAndMarket(ctx context.Contex
 	var symbolData models.StockSymbol
 	err := r.db.WithContext(ctx).Where("symbol = ? AND market = ?", symbol, market).First(&symbolData).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, err
-	}
-
-	if err == gorm.ErrRecordNotFound {
-		return nil, nil
 	}
 
 	return &entity.StockSymbol{
@@ -67,11 +71,10 @@ func (r *postgresStockSymbolsRepository) GetBySymbol(ctx context.Context, symbol
 	var symbolData models.StockSymbol
 	err := r.db.WithContext(ctx).Where("symbol = ?", symbol).First(&symbolData).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, err
-	}
-
-	if err == gorm.ErrRecordNotFound {
-		return nil, nil
 	}
 
 	return &entity.StockSymbol{
@@ -80,26 +83,6 @@ func (r *postgresStockSymbolsRepository) GetBySymbol(ctx context.Context, symbol
 		Market: symbolData.Market,
 		Name:   symbolData.Name,
 	}, nil
-}
-
-// GetBySubscriptionID 根據訂閱 ID 取得股票代號列表
-func (r *postgresStockSymbolsRepository) GetBySubscriptionID(ctx context.Context, subscriptionID uint) ([]*entity.StockSymbol, error) {
-	var symbols []*models.StockSymbol
-	err := r.db.WithContext(ctx).Where("subscription_id = ?", subscriptionID).Find(&symbols).Error
-	if err != nil {
-		return nil, err
-	}
-
-	var entities []*entity.StockSymbol
-	for _, symbol := range symbols {
-		entities = append(entities, &entity.StockSymbol{
-			ID:     symbol.ID,
-			Symbol: symbol.Symbol,
-			Market: symbol.Market,
-			Name:   symbol.Name,
-		})
-	}
-	return entities, nil
 }
 
 // GetBySymbolID 根據股票 ID 取得股票代號列表
@@ -122,40 +105,27 @@ func (r *postgresStockSymbolsRepository) GetBySymbolID(ctx context.Context, symb
 	return entities, nil
 }
 
-// GetBySubscriptionAndSymbol 根據訂閱和股票取得股票代號列表
-func (r *postgresStockSymbolsRepository) GetBySubscriptionAndSymbol(ctx context.Context, subscriptionID, symbolID uint) (*entity.StockSymbol, error) {
-	var symbol models.StockSymbol
-	err := r.db.WithContext(ctx).Where("subscription_id = ? AND symbol_id = ?", subscriptionID, symbolID).First(&symbol).Error
-	if err != nil {
-		return nil, err
-	}
-
-	if err == gorm.ErrRecordNotFound {
-		return nil, nil
-	}
-
-	return &entity.StockSymbol{
-		ID:     symbol.ID,
-		Symbol: symbol.Symbol,
-		Market: symbol.Market,
-		Name:   symbol.Name,
-	}, nil
-}
-
 // Create 建立新股票代號
 func (r *postgresStockSymbolsRepository) Create(ctx context.Context, symbol *entity.StockSymbol) error {
+	r.logger.Info("Creating stock symbol", logger.String("symbol", symbol.Symbol), logger.String("market", symbol.Market))
+
 	err := r.db.WithContext(ctx).Create(&models.StockSymbol{
 		Symbol: symbol.Symbol,
 		Market: symbol.Market,
 		Name:   symbol.Name,
 	}).Error
 	if err != nil {
+		r.logger.Error("Failed to create stock symbol", logger.Error(err), logger.String("symbol", symbol.Symbol))
 		return err
 	}
+
+	r.logger.Info("Stock symbol created successfully", logger.String("symbol", symbol.Symbol))
 	return nil
 }
 
 func (r *postgresStockSymbolsRepository) Update(ctx context.Context, symbol *entity.StockSymbol) error {
+	r.logger.Info("Updating stock symbol", logger.Any("id", symbol.ID), logger.String("symbol", symbol.Symbol))
+
 	err := r.db.WithContext(ctx).Model(&models.StockSymbol{}).
 		Where("id = ?", symbol.ID).
 		Updates(map[string]interface{}{
@@ -164,22 +134,30 @@ func (r *postgresStockSymbolsRepository) Update(ctx context.Context, symbol *ent
 			"name":   symbol.Name,
 		}).Error
 	if err != nil {
+		r.logger.Error("Failed to update stock symbol", logger.Error(err), logger.Any("id", symbol.ID))
 		return err
 	}
+
+	r.logger.Info("Stock symbol updated successfully", logger.Any("id", symbol.ID))
 	return nil
 }
 
 // Delete 刪除股票代號
 func (r *postgresStockSymbolsRepository) Delete(ctx context.Context, id uint) error {
-	err := r.db.WithContext(ctx).Delete(&models.StockSymbol{}, id).Error
-	if err != nil {
-		return err
+	r.logger.Info("Deleting stock symbol", logger.Any("id", id))
+
+	result := r.db.WithContext(ctx).Delete(&models.StockSymbol{}, id)
+	if result.Error != nil {
+		r.logger.Error("Failed to delete stock symbol", logger.Error(result.Error), logger.Any("id", id))
+		return result.Error
 	}
 
-	if err == gorm.ErrRecordNotFound {
-		return fmt.Errorf("symbol not found: %w", err)
+	if result.RowsAffected == 0 {
+		r.logger.Warn("Stock symbol not found for deletion", logger.Any("id", id))
+		return fmt.Errorf("symbol not found with id: %d", id)
 	}
 
+	r.logger.Info("Stock symbol deleted successfully", logger.Any("id", id))
 	return nil
 }
 
@@ -206,40 +184,48 @@ func (r *postgresStockSymbolsRepository) List(ctx context.Context, offset, limit
 
 // BatchCreate 批次建立股票代號
 func (r *postgresStockSymbolsRepository) BatchCreate(ctx context.Context, symbols []*entity.StockSymbol) error {
+	r.logger.Info("Batch creating stock symbols", logger.Int("count", len(symbols)))
+
 	err := r.db.WithContext(ctx).CreateInBatches(symbols, 100).Error
 	if err != nil {
+		r.logger.Error("Failed to batch create stock symbols", logger.Error(err), logger.Int("count", len(symbols)))
 		return err
 	}
+
+	r.logger.Info("Batch create completed successfully", logger.Int("count", len(symbols)))
 	return nil
 }
 
 // BatchUpsert 批次更新或建立股票代號
 func (r *postgresStockSymbolsRepository) BatchUpsert(ctx context.Context, symbols []*entity.StockSymbol) (successCount, errorCount int, err error) {
-	for _, symbol := range symbols {
-		var existingSymbol models.StockSymbol
-		err := r.db.WithContext(ctx).Where("symbol = ? AND market = ?", symbol.Symbol, symbol.Market).First(&existingSymbol).Error
-
-		if err == gorm.ErrRecordNotFound {
-			newSymbol := models.StockSymbol{
-				Symbol: symbol.Symbol,
-				Market: symbol.Market,
-				Name:   symbol.Name,
-			}
-			if err := r.db.WithContext(ctx).Create(&newSymbol).Error; err != nil {
-				errorCount++
-				continue
-			}
-			successCount++
-		} else if err != nil {
-			errorCount++
-			continue
-		} else {
-			// 記錄已存在，跳過但計入成功
-			successCount++
-		}
+	if len(symbols) == 0 {
+		r.logger.Debug("BatchUpsert called with empty symbols list")
+		return 0, 0, nil
 	}
 
-	return successCount, errorCount, nil
+	r.logger.Info("Starting batch upsert", logger.Int("count", len(symbols)))
+
+	modelSymbols := make([]models.StockSymbol, 0, len(symbols))
+	for _, symbol := range symbols {
+		modelSymbols = append(modelSymbols, models.StockSymbol{
+			Symbol: symbol.Symbol,
+			Market: symbol.Market,
+			Name:   symbol.Name,
+		})
+	}
+
+	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "symbol"}, {Name: "market"}},
+		DoUpdates: clause.AssignmentColumns([]string{"name"}),
+	}).CreateInBatches(modelSymbols, 100)
+
+	if result.Error != nil {
+		r.logger.Error("Failed to batch upsert stock symbols", logger.Error(result.Error), logger.Int("count", len(symbols)))
+		return 0, len(symbols), result.Error
+	}
+
+	r.logger.Info("Batch upsert completed successfully", logger.Int("affected_rows", int(result.RowsAffected)))
+	return int(result.RowsAffected), 0, nil
 }
 
 // GetMarketStats 取得各市場的股票統計資訊
