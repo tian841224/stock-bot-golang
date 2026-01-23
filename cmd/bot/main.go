@@ -63,13 +63,13 @@ func main() {
 	// ============================================================
 
 	appLogger.Info("初始化 Repository 層...")
-	userRepo := repository.NewPostgresUserRepository(gormDB)
-	stockSymbolRepo := repository.NewSymbolRepository(gormDB)
-	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB)
-	subscriptionRepo := repository.NewSubscriptionRepository(gormDB)
-	subscriptionSymbolRepo := repository.NewSubscriptionSymbolRepository(gormDB)
-	featureReader, _ := repository.NewFeatureRepository(gormDB)
-	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB)
+	userRepo := repository.NewPostgresUserRepository(gormDB, appLogger)
+	stockSymbolRepo := repository.NewSymbolRepository(gormDB, appLogger)
+	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB, appLogger)
+	subscriptionRepo := repository.NewSubscriptionRepository(gormDB, appLogger)
+	subscriptionSymbolRepo := repository.NewSubscriptionSymbolRepository(gormDB, appLogger)
+	featureReader, _ := repository.NewFeatureRepository(gormDB, appLogger)
+	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB, appLogger)
 	appLogger.Info("Feature Repository 初始化成功，預設功能資料已建立")
 
 	// ============================================================

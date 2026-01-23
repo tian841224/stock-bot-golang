@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/tian841224/stock-bot/internal/application/port"
-	"github.com/tian841224/stock-bot/internal/infrastructure/logging"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 )
 
 type HealthCheckUsecase interface {
