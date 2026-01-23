@@ -1,9 +1,9 @@
 package entity
 
 type SubscriptionSymbol struct {
-	ID             uint
-	SubscriptionID uint
-	SymbolID       uint
-	Subscription   *Subscription
-	StockSymbol    *StockSymbol
+	ID           uint
+	UserID       uint
+	SymbolID     uint
+	Subscription *Subscription
+	StockSymbol  *StockSymbol
 }
