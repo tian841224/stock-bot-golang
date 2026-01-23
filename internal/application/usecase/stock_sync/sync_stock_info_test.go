@@ -23,15 +23,7 @@ func (m *mockStockSymbolRepo) GetBySymbol(ctx context.Context, symbol string) (*
 	return nil, nil
 }
 
-func (m *mockStockSymbolRepo) GetBySubscriptionID(ctx context.Context, subscriptionID uint) ([]*entity.StockSymbol, error) {
-	return nil, nil
-}
-
 func (m *mockStockSymbolRepo) GetBySymbolID(ctx context.Context, symbolID uint) ([]*entity.StockSymbol, error) {
-	return nil, nil
-}
-
-func (m *mockStockSymbolRepo) GetBySubscriptionAndSymbol(ctx context.Context, subscriptionID, symbolID uint) (*entity.StockSymbol, error) {
 	return nil, nil
 }
 
