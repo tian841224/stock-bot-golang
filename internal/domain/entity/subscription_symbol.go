@@ -6,4 +6,5 @@ type SubscriptionSymbol struct {
 	SymbolID     uint
 	Subscription *Subscription
 	StockSymbol  *StockSymbol
+	User         *User
 }

@@ -9,6 +9,7 @@ type SubscriptionSymbol struct {
 	SymbolID uint `gorm:"column:symbol_id;type:bigint;index;uniqueIndex:idx_user_symbol,priority:1" json:"symbol_id"`
 	// 關聯資料表
 	StockSymbol *StockSymbol `gorm:"foreignKey:SymbolID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	User        *User        `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 }
 
 func (SubscriptionSymbol) TableName() string {

@@ -6,6 +6,7 @@ import (
 
 	repo "github.com/tian841224/stock-bot/internal/application/port"
 	"github.com/tian841224/stock-bot/internal/domain/entity"
+	"github.com/tian841224/stock-bot/internal/domain/valueobject"
 	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 	models "github.com/tian841224/stock-bot/internal/infrastructure/persistence/model"
 
@@ -40,6 +41,15 @@ func (r *subscriptionSymbolRepository) toEntity(model *models.SubscriptionSymbol
 			Symbol: model.StockSymbol.Symbol,
 			Market: model.StockSymbol.Market,
 			Name:   model.StockSymbol.Name,
+		}
+	}
+
+	if model.User != nil {
+		result.User = &entity.User{
+			ID:        model.User.ID,
+			AccountID: model.User.AccountID,
+			UserType:  model.User.UserType,
+			Status:    model.User.Status,
 		}
 	}
 
@@ -202,6 +212,52 @@ func (r *subscriptionSymbolRepository) GetAll(ctx context.Context, order string)
 	var entities []*entity.SubscriptionSymbol
 	for _, subscriptionSymbol := range subscriptionSymbols {
 		entities = append(entities, r.toEntity(subscriptionSymbol))
+	}
+	return entities, nil
+}
+
+// GetAllWithDetails 取得所有訂閱股票關聯 (包含關聯資料)
+func (r *subscriptionSymbolRepository) GetAllWithDetails(ctx context.Context) ([]*entity.SubscriptionSymbol, error) {
+	var subscriptionSymbols []*models.SubscriptionSymbol
+	// Preload StockSymbol and User to avoid N+1 queries
+	err := r.db.WithContext(ctx).
+		Preload("StockSymbol").
+		Preload("User").
+		Find(&subscriptionSymbols).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var entities []*entity.SubscriptionSymbol
+	for _, subscriptionSymbol := range subscriptionSymbols {
+		entities = append(entities, r.toEntity(subscriptionSymbol))
+	}
+	return entities, nil
+}
+
+// GetByFeature 取得所有訂閱特定功能的使用者及其關注的股票
+func (r *subscriptionSymbolRepository) GetByFeature(ctx context.Context, feature valueobject.SubscriptionType) ([]*entity.SubscriptionSymbol, error) {
+	var subscriptionSymbols []*models.SubscriptionSymbol
+
+	err := r.db.WithContext(ctx).
+		Preload("StockSymbol").
+		Preload("User").
+		Table("subscription_symbols").
+		Joins("JOIN subscriptions ON subscriptions.user_id = subscription_symbols.user_id").
+		Where("subscriptions.feature_id = ? AND subscriptions.status = ?", feature, true).
+		Find(&subscriptionSymbols).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	var entities []*entity.SubscriptionSymbol
+	for _, s := range subscriptionSymbols {
+		entities = append(entities, r.toEntity(s))
 	}
 	return entities, nil
 }
