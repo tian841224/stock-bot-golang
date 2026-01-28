@@ -85,6 +85,32 @@ func (r *postgresStockSymbolsRepository) GetBySymbol(ctx context.Context, symbol
 	}, nil
 }
 
+// GetBySubscriptionID 根據訂閱 ID 取得股票代號列表
+func (r *postgresStockSymbolsRepository) GetBySubscriptionID(ctx context.Context, subscriptionID uint) ([]*entity.StockSymbol, error) {
+	var symbols []*models.StockSymbol
+	err := r.db.WithContext(ctx).
+		Table("stock_symbols").
+		Joins("JOIN subscription_symbols ON subscription_symbols.symbol_id = stock_symbols.id").
+		Joins("JOIN subscriptions ON subscriptions.user_id = subscription_symbols.user_id").
+		Where("subscriptions.id = ?", subscriptionID).
+		Find(&symbols).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	var entities []*entity.StockSymbol
+	for _, symbol := range symbols {
+		entities = append(entities, &entity.StockSymbol{
+			ID:     symbol.ID,
+			Symbol: symbol.Symbol,
+			Market: symbol.Market,
+			Name:   symbol.Name,
+		})
+	}
+	return entities, nil
+}
+
 // GetBySymbolID 根據股票 ID 取得股票代號列表
 func (r *postgresStockSymbolsRepository) GetBySymbolID(ctx context.Context, symbolID uint) ([]*entity.StockSymbol, error) {
 	var symbols []*models.StockSymbol
@@ -103,6 +129,31 @@ func (r *postgresStockSymbolsRepository) GetBySymbolID(ctx context.Context, symb
 		})
 	}
 	return entities, nil
+}
+
+// GetBySubscriptionAndSymbol 根據訂閱 ID 和股票 ID 取得股票代號
+func (r *postgresStockSymbolsRepository) GetBySubscriptionAndSymbol(ctx context.Context, subscriptionID, symbolID uint) (*entity.StockSymbol, error) {
+	var symbol models.StockSymbol
+	err := r.db.WithContext(ctx).
+		Table("stock_symbols").
+		Joins("JOIN subscription_symbols ON subscription_symbols.symbol_id = stock_symbols.id").
+		Joins("JOIN subscriptions ON subscriptions.user_id = subscription_symbols.user_id").
+		Where("subscriptions.id = ? AND stock_symbols.id = ?", subscriptionID, symbolID).
+		First(&symbol).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &entity.StockSymbol{
+		ID:     symbol.ID,
+		Symbol: symbol.Symbol,
+		Market: symbol.Market,
+		Name:   symbol.Name,
+	}, nil
 }
 
 // Create 建立新股票代號

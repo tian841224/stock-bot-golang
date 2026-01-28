@@ -107,6 +107,50 @@ func (r *subscriptionSymbolRepository) GetBySymbolID(ctx context.Context, symbol
 	return entities, nil
 }
 
+// GetBySubscriptionID 根據訂閱 ID 取得訂閱股票關聯
+func (r *subscriptionSymbolRepository) GetBySubscriptionID(ctx context.Context, subscriptionID uint) ([]*entity.SubscriptionSymbol, error) {
+	var subscriptionSymbols []*models.SubscriptionSymbol
+	err := r.db.WithContext(ctx).
+		Table("subscription_symbols").
+		Preload("StockSymbol").
+		Joins("JOIN subscriptions ON subscriptions.user_id = subscription_symbols.user_id").
+		Where("subscriptions.id = ?", subscriptionID).
+		Find(&subscriptionSymbols).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var entities []*entity.SubscriptionSymbol
+	for _, subscriptionSymbol := range subscriptionSymbols {
+		entities = append(entities, r.toEntity(subscriptionSymbol))
+	}
+	return entities, nil
+}
+
+// GetBySubscriptionAndSymbol 根據訂閱 ID 和股票 ID 取得訂閱股票關聯
+func (r *subscriptionSymbolRepository) GetBySubscriptionAndSymbol(ctx context.Context, subscriptionID, symbolID uint) (*entity.SubscriptionSymbol, error) {
+	var subscriptionSymbol models.SubscriptionSymbol
+	err := r.db.WithContext(ctx).
+		Table("subscription_symbols").
+		Preload("StockSymbol").
+		Joins("JOIN subscriptions ON subscriptions.user_id = subscription_symbols.user_id").
+		Where("subscriptions.id = ? AND subscription_symbols.symbol_id = ?", subscriptionID, symbolID).
+		First(&subscriptionSymbol).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return r.toEntity(&subscriptionSymbol), nil
+}
+
 // GetUserSubscriptionStockList 取得使用者訂閱股票列表
 func (r *subscriptionSymbolRepository) GetUserSubscriptionStockList(ctx context.Context, userID uint) ([]*entity.SubscriptionSymbol, error) {
 	var subscriptionSymbols []*models.SubscriptionSymbol
