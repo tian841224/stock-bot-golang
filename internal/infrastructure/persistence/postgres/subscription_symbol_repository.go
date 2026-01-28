@@ -285,24 +285,58 @@ func (r *subscriptionSymbolRepository) GetAllWithDetails(ctx context.Context) ([
 
 // GetByFeature 取得所有訂閱特定功能的使用者及其關注的股票
 func (r *subscriptionSymbolRepository) GetByFeature(ctx context.Context, feature valueobject.SubscriptionType) ([]*entity.SubscriptionSymbol, error) {
-	var subscriptionSymbols []*models.SubscriptionSymbol
-
+	// 先找出符合條件的訂閱 (Subscriptions)
+	var subscriptions []*models.Subscription
 	err := r.db.WithContext(ctx).
+		Where("feature_id = ? AND status = ?", feature, true).
+		Find(&subscriptions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(subscriptions) == 0 {
+		return []*entity.SubscriptionSymbol{}, nil
+	}
+
+	// 建立 UserID -> Subscription 的對照表
+	userSubscriptionMap := make(map[uint]*models.Subscription)
+	var userIDs []uint
+	for _, sub := range subscriptions {
+		userSubscriptionMap[sub.UserID] = sub
+		userIDs = append(userIDs, sub.UserID)
+	}
+
+	// 根據 UserIDs 找出所有的訂閱股票 (SubscriptionSymbols)
+	var subscriptionSymbols []*models.SubscriptionSymbol
+	err = r.db.WithContext(ctx).
 		Preload("StockSymbol").
 		Preload("User").
-		Table("subscription_symbols").
-		Joins("JOIN subscriptions ON subscriptions.user_id = subscription_symbols.user_id").
-		Where("subscriptions.feature_id = ? AND subscriptions.status = ?", feature, true).
+		Where("user_id IN ?", userIDs).
 		Find(&subscriptionSymbols).Error
 
 	if err != nil {
 		return nil, err
 	}
 
+	// 3轉換為 Entity 並組裝 Subscription
 	var entities []*entity.SubscriptionSymbol
 	for _, s := range subscriptionSymbols {
-		entities = append(entities, r.toEntity(s))
+		entityItem := r.toEntity(s)
+
+		// Subscription 資訊
+		if sub, ok := userSubscriptionMap[s.UserID]; ok {
+			entityItem.Subscription = &entity.Subscription{
+				ID:        sub.ID,
+				UserID:    sub.UserID,
+				FeatureID: sub.FeatureID,
+				Active:    sub.Status,
+			}
+		}
+
+		entities = append(entities, entityItem)
 	}
+
 	return entities, nil
 }
 

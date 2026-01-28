@@ -28,6 +28,26 @@ func NewSymbolRepository(db *gorm.DB, log logger.Logger) *postgresStockSymbolsRe
 	}
 }
 
+func (r *postgresStockSymbolsRepository) toEntity(model *models.StockSymbol) *entity.StockSymbol {
+	return &entity.StockSymbol{
+		ID:     model.ID,
+		Symbol: model.Symbol,
+		Market: model.Market,
+		Name:   model.Name,
+	}
+}
+
+func (r *postgresStockSymbolsRepository) toModel(entity *entity.StockSymbol) *models.StockSymbol {
+	return &models.StockSymbol{
+		Model: models.Model{
+			ID: entity.ID,
+		},
+		Symbol: entity.Symbol,
+		Market: entity.Market,
+		Name:   entity.Name,
+	}
+}
+
 // GetByID 根據 ID 取得股票代號
 func (r *postgresStockSymbolsRepository) GetByID(ctx context.Context, id uint) (*entity.StockSymbol, error) {
 	var symbol models.StockSymbol
@@ -39,12 +59,7 @@ func (r *postgresStockSymbolsRepository) GetByID(ctx context.Context, id uint) (
 		return nil, err
 	}
 
-	return &entity.StockSymbol{
-		ID:     symbol.ID,
-		Symbol: symbol.Symbol,
-		Market: symbol.Market,
-		Name:   symbol.Name,
-	}, nil
+	return r.toEntity(&symbol), nil
 }
 
 // GetBySymbolAndMarket 根據股票代號和市場取得資料
@@ -58,12 +73,7 @@ func (r *postgresStockSymbolsRepository) GetBySymbolAndMarket(ctx context.Contex
 		return nil, err
 	}
 
-	return &entity.StockSymbol{
-		ID:     symbolData.ID,
-		Symbol: symbolData.Symbol,
-		Market: symbolData.Market,
-		Name:   symbolData.Name,
-	}, nil
+	return r.toEntity(&symbolData), nil
 }
 
 // GetBySymbol 根據股票代號取得資料
@@ -77,12 +87,7 @@ func (r *postgresStockSymbolsRepository) GetBySymbol(ctx context.Context, symbol
 		return nil, err
 	}
 
-	return &entity.StockSymbol{
-		ID:     symbolData.ID,
-		Symbol: symbolData.Symbol,
-		Market: symbolData.Market,
-		Name:   symbolData.Name,
-	}, nil
+	return r.toEntity(&symbolData), nil
 }
 
 // GetBySubscriptionID 根據訂閱 ID 取得股票代號列表
@@ -101,12 +106,7 @@ func (r *postgresStockSymbolsRepository) GetBySubscriptionID(ctx context.Context
 
 	var entities []*entity.StockSymbol
 	for _, symbol := range symbols {
-		entities = append(entities, &entity.StockSymbol{
-			ID:     symbol.ID,
-			Symbol: symbol.Symbol,
-			Market: symbol.Market,
-			Name:   symbol.Name,
-		})
+		entities = append(entities, r.toEntity(symbol))
 	}
 	return entities, nil
 }
@@ -121,12 +121,7 @@ func (r *postgresStockSymbolsRepository) GetBySymbolID(ctx context.Context, symb
 
 	var entities []*entity.StockSymbol
 	for _, symbol := range symbols {
-		entities = append(entities, &entity.StockSymbol{
-			ID:     symbol.ID,
-			Symbol: symbol.Symbol,
-			Market: symbol.Market,
-			Name:   symbol.Name,
-		})
+		entities = append(entities, r.toEntity(symbol))
 	}
 	return entities, nil
 }
@@ -148,23 +143,15 @@ func (r *postgresStockSymbolsRepository) GetBySubscriptionAndSymbol(ctx context.
 		return nil, err
 	}
 
-	return &entity.StockSymbol{
-		ID:     symbol.ID,
-		Symbol: symbol.Symbol,
-		Market: symbol.Market,
-		Name:   symbol.Name,
-	}, nil
+	return r.toEntity(&symbol), nil
 }
 
 // Create 建立新股票代號
 func (r *postgresStockSymbolsRepository) Create(ctx context.Context, symbol *entity.StockSymbol) error {
 	r.logger.Info("Creating stock symbol", logger.String("symbol", symbol.Symbol), logger.String("market", symbol.Market))
 
-	err := r.db.WithContext(ctx).Create(&models.StockSymbol{
-		Symbol: symbol.Symbol,
-		Market: symbol.Market,
-		Name:   symbol.Name,
-	}).Error
+	model := r.toModel(symbol)
+	err := r.db.WithContext(ctx).Create(model).Error
 	if err != nil {
 		r.logger.Error("Failed to create stock symbol", logger.Error(err), logger.String("symbol", symbol.Symbol))
 		return err
@@ -177,13 +164,11 @@ func (r *postgresStockSymbolsRepository) Create(ctx context.Context, symbol *ent
 func (r *postgresStockSymbolsRepository) Update(ctx context.Context, symbol *entity.StockSymbol) error {
 	r.logger.Info("Updating stock symbol", logger.Any("id", symbol.ID), logger.String("symbol", symbol.Symbol))
 
+	model := r.toModel(symbol)
 	err := r.db.WithContext(ctx).Model(&models.StockSymbol{}).
 		Where("id = ?", symbol.ID).
-		Updates(map[string]interface{}{
-			"symbol": symbol.Symbol,
-			"market": symbol.Market,
-			"name":   symbol.Name,
-		}).Error
+		Updates(model).Error
+
 	if err != nil {
 		r.logger.Error("Failed to update stock symbol", logger.Error(err), logger.Any("id", symbol.ID))
 		return err
@@ -222,12 +207,7 @@ func (r *postgresStockSymbolsRepository) List(ctx context.Context, offset, limit
 
 	var entities []*entity.StockSymbol
 	for _, symbol := range symbols {
-		entities = append(entities, &entity.StockSymbol{
-			ID:     symbol.ID,
-			Symbol: symbol.Symbol,
-			Market: symbol.Market,
-			Name:   symbol.Name,
-		})
+		entities = append(entities, r.toEntity(symbol))
 	}
 
 	return entities, nil
@@ -237,7 +217,12 @@ func (r *postgresStockSymbolsRepository) List(ctx context.Context, offset, limit
 func (r *postgresStockSymbolsRepository) BatchCreate(ctx context.Context, symbols []*entity.StockSymbol) error {
 	r.logger.Info("Batch creating stock symbols", logger.Int("count", len(symbols)))
 
-	err := r.db.WithContext(ctx).CreateInBatches(symbols, 100).Error
+	modelSymbols := make([]*models.StockSymbol, len(symbols))
+	for i, symbol := range symbols {
+		modelSymbols[i] = r.toModel(symbol)
+	}
+
+	err := r.db.WithContext(ctx).CreateInBatches(modelSymbols, 100).Error
 	if err != nil {
 		r.logger.Error("Failed to batch create stock symbols", logger.Error(err), logger.Int("count", len(symbols)))
 		return err
@@ -256,13 +241,22 @@ func (r *postgresStockSymbolsRepository) BatchUpsert(ctx context.Context, symbol
 
 	r.logger.Info("Starting batch upsert", logger.Int("count", len(symbols)))
 
+	// Deduplication map to prevent duplicates in the same batch
+	deduplicatedMap := make(map[string]bool)
 	modelSymbols := make([]models.StockSymbol, 0, len(symbols))
+
 	for _, symbol := range symbols {
-		modelSymbols = append(modelSymbols, models.StockSymbol{
-			Symbol: symbol.Symbol,
-			Market: symbol.Market,
-			Name:   symbol.Name,
-		})
+		key := fmt.Sprintf("%s|%s", symbol.Symbol, symbol.Market)
+		if _, exists := deduplicatedMap[key]; exists {
+			continue // Skip duplicate
+		}
+		deduplicatedMap[key] = true
+
+		modelSymbols = append(modelSymbols, *r.toModel(symbol))
+	}
+
+	if len(modelSymbols) == 0 {
+		return 0, 0, nil
 	}
 
 	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
