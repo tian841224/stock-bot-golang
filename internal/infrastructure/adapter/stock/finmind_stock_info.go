@@ -70,8 +70,7 @@ func (a *finmindStockInfoAdapter) GetUSStockInfo(ctx context.Context) ([]*entity
 }
 
 func (a *finmindStockInfoAdapter) GetTaiwanStockTradingDate(ctx context.Context) ([]*entity.TradeDate, error) {
-	response, err := a.finmindAPI.GetTaiwanStockTradingDate(dto.FinmindtradeRequestDto{
-	})
+	response, err := a.finmindAPI.GetTaiwanStockTradingDate(dto.FinmindtradeRequestDto{})
 	if err != nil {
 		return nil, fmt.Errorf("呼叫 FinMind API 失敗: %w", err)
 	}

@@ -6,16 +6,21 @@ import (
 
 	repo "github.com/tian841224/stock-bot/internal/application/port"
 	"github.com/tian841224/stock-bot/internal/domain/entity"
-	"github.com/tian841224/stock-bot/internal/infrastructure/persistence/model"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
+	models "github.com/tian841224/stock-bot/internal/infrastructure/persistence/model"
 	"gorm.io/gorm"
 )
 
 type postgresTradeDateRepository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger logger.Logger
 }
 
-func NewPostgresTradeDateRepository(db *gorm.DB) *postgresTradeDateRepository {
-	return &postgresTradeDateRepository{db: db}
+func NewPostgresTradeDateRepository(db *gorm.DB, log logger.Logger) *postgresTradeDateRepository {
+	return &postgresTradeDateRepository{
+		db:     db,
+		logger: log,
+	}
 }
 
 var _ repo.TradeDateReader = (*postgresTradeDateRepository)(nil)
@@ -84,15 +89,34 @@ func (r *postgresTradeDateRepository) GetByDateRange(ctx context.Context, startD
 
 // Create 建立新交易日資料
 func (r *postgresTradeDateRepository) Create(ctx context.Context, tradeDate *entity.TradeDate) error {
+	r.logger.Info("Creating trade date", logger.Any("date", tradeDate.Date), logger.String("exchange", tradeDate.Exchange))
+
 	dbModel := r.toModel(tradeDate)
-	return r.db.WithContext(ctx).Create(dbModel).Error
+	err := r.db.WithContext(ctx).Create(dbModel).Error
+	if err != nil {
+		r.logger.Error("Failed to create trade date", logger.Error(err), logger.Any("date", tradeDate.Date))
+		return err
+	}
+
+	r.logger.Info("Trade date created successfully", logger.Any("date", tradeDate.Date))
+	return nil
 }
 
 // BatchCreateTradeDates 批次建立交易日資料
 func (r *postgresTradeDateRepository) BatchCreateTradeDates(ctx context.Context, tradeDates []*entity.TradeDate) error {
+	r.logger.Info("Batch creating trade dates", logger.Int("count", len(tradeDates)))
+
 	dbModels := make([]*models.TradeDate, 0, len(tradeDates))
 	for _, tradeDate := range tradeDates {
 		dbModels = append(dbModels, r.toModel(tradeDate))
 	}
-	return r.db.WithContext(ctx).CreateInBatches(dbModels, 100).Error
+
+	err := r.db.WithContext(ctx).CreateInBatches(dbModels, 100).Error
+	if err != nil {
+		r.logger.Error("Failed to batch create trade dates", logger.Error(err), logger.Int("count", len(tradeDates)))
+		return err
+	}
+
+	r.logger.Info("Batch create trade dates completed", logger.Int("count", len(tradeDates)))
+	return nil
 }

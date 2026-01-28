@@ -3,7 +3,7 @@ package health
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/tian841224/stock-bot/internal/application/usecase/health"
-	"github.com/tian841224/stock-bot/internal/infrastructure/logging"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 )
 
 type HealthHandler struct {

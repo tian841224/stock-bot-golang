@@ -87,6 +87,7 @@ type SubscriptionSymbolReader interface {
 	GetUserSubscriptionStockList(ctx context.Context, userID uint) ([]*entity.SubscriptionSymbol, error)
 	List(ctx context.Context, offset, limit int) ([]*entity.SubscriptionSymbol, error)
 	GetAll(ctx context.Context, order string) ([]*entity.SubscriptionSymbol, error)
+	GetByFeature(ctx context.Context, feature valueobject.SubscriptionType) ([]*entity.SubscriptionSymbol, error)
 }
 
 type SubscriptionSymbolWriter interface {

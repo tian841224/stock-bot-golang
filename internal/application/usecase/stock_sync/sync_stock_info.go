@@ -134,9 +134,26 @@ func (s *stockSyncUsecase) asyncBatchUpsert(ctx context.Context, symbols []*enti
 		maxWorkers = 5
 	)
 
-	batches := s.splitIntoBatches(symbols, batchSize)
+	// 全域去重：確保不同批次間也不會有重複的資料
+	uniqueSymbolsMap := make(map[string]*entity.StockSymbol)
+	for _, s := range symbols {
+		key := s.Symbol + "|" + s.Market
+		if _, exists := uniqueSymbolsMap[key]; !exists {
+			uniqueSymbolsMap[key] = s
+		}
+	}
+
+	// 重建去重後的切片
+	var uniqueSymbols []*entity.StockSymbol
+	for _, s := range uniqueSymbolsMap {
+		uniqueSymbols = append(uniqueSymbols, s)
+	}
+
+	// 使用去重後的資料進行批次切分
+	batches := s.splitIntoBatches(uniqueSymbols, batchSize)
 	s.logger.Info("開始非同步批次處理",
-		logger.Int("總數量", len(symbols)),
+		logger.Int("原始數量", len(symbols)),
+		logger.Int("去重後數量", len(uniqueSymbols)),
 		logger.Int("批次數", len(batches)),
 		logger.Int("工作者數", maxWorkers))
 

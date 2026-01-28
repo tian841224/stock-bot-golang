@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/tian841224/stock-bot/internal/application/dto"
-	usecase_dto "github.com/tian841224/stock-bot/internal/application/dto"
 	"github.com/tian841224/stock-bot/internal/domain/entity"
 )
 
@@ -128,43 +127,75 @@ func TestMarketChartUsecase_GetRevenueChart(t *testing.T) {
 }
 
 func TestMarketChartUsecase_GetHistoricalCandlesChart(t *testing.T) {
-	query := usecase_dto.CandleQuery{Symbol: "2330"}
+	symbol := "2330"
+	validStock := &entity.StockSymbol{Symbol: symbol, Name: "台積電"}
 	chartData := []byte("chart data")
 
 	tests := []struct {
-		name          string
-		query         usecase_dto.CandleQuery
-		mockChartFunc func(ctx context.Context, symbol string) ([]byte, string, error)
-		expectError   bool
-		errorContains string
+		name             string
+		symbol           string
+		mockValidateFunc func(ctx context.Context, symbol string) (*entity.StockSymbol, error)
+		mockChartFunc    func(ctx context.Context, symbol string) ([]byte, string, error)
+		expectError      bool
+		errorContains    string
 	}{
 		{
-			name:  "成功取得歷史K線圖",
-			query: query,
+			name:   "成功取得歷史K線圖",
+			symbol: symbol,
+			mockValidateFunc: func(ctx context.Context, symbol string) (*entity.StockSymbol, error) {
+				return validStock, nil
+			},
 			mockChartFunc: func(ctx context.Context, symbol string) ([]byte, string, error) {
 				return chartData, "台積電", nil
 			},
 			expectError: false,
 		},
 		{
-			name:  "取得歷史K線圖失敗",
-			query: query,
+			name:   "驗證股票代號失敗",
+			symbol: "invalid",
+			mockValidateFunc: func(ctx context.Context, symbol string) (*entity.StockSymbol, error) {
+				return nil, fmt.Errorf("invalid symbol")
+			},
+			expectError:   true,
+			errorContains: "查無此股票代號",
+		},
+		{
+			name:   "取得歷史K線圖失敗",
+			symbol: symbol,
+			mockValidateFunc: func(ctx context.Context, symbol string) (*entity.StockSymbol, error) {
+				return validStock, nil
+			},
 			mockChartFunc: func(ctx context.Context, symbol string) ([]byte, string, error) {
 				return nil, "", fmt.Errorf("port error")
 			},
 			expectError:   true,
 			errorContains: "取得歷史K線圖失敗",
 		},
+		{
+			name:   "圖表資料為nil",
+			symbol: symbol,
+			mockValidateFunc: func(ctx context.Context, symbol string) (*entity.StockSymbol, error) {
+				return validStock, nil
+			},
+			mockChartFunc: func(ctx context.Context, symbol string) ([]byte, string, error) {
+				return nil, "", nil
+			},
+			expectError:   true,
+			errorContains: "查無資料",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockValidation := &mockValidationPort{
+				ValidateSymbolFunc: tt.mockValidateFunc,
+			}
 			mockMarketChart := &mockMarketChartPort{
 				GetHistoricalCandlesChartFunc: tt.mockChartFunc,
 			}
 
-			uc := NewMarketDataChartUsecase(mockMarketChart, nil, &mockLogger{})
-			_, err := uc.GetHistoricalCandlesChart(context.Background(), tt.query.Symbol)
+			uc := NewMarketDataChartUsecase(mockMarketChart, mockValidation, &mockLogger{})
+			_, err := uc.GetHistoricalCandlesChart(context.Background(), tt.symbol)
 
 			if tt.expectError {
 				if err == nil {

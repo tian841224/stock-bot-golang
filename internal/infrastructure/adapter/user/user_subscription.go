@@ -65,13 +65,27 @@ func (p *userSubscriptionGateway) GetUserSubscriptionStockList(ctx context.Conte
 		return nil, fmt.Errorf("取得使用者訂閱股票列表失敗: %w", err)
 	}
 
+	// 取得使用者的訂閱以檢查狀態
+	subscriptions, err := p.subscriptionRepo.GetUserSubscriptionList(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("取得使用者訂閱項目失敗: %w", err)
+	}
+
+	// 建立訂閱狀態映射（以功能ID為鍵）
+	subscriptionStatusMap := make(map[valueobject.SubscriptionType]bool)
+	for _, sub := range subscriptions {
+		subscriptionStatusMap[sub.Item] = sub.Active
+	}
+
 	var stocks []*dto.UserSubscriptionStock
 	for _, subSymbol := range subscriptionSymbols {
-		if subSymbol.StockSymbol != nil && subSymbol.Subscription != nil {
+		if subSymbol.StockSymbol != nil {
+			// 取得股票資訊訂閱的狀態
+			status := subscriptionStatusMap[valueobject.SubscriptionTypeStockInfo]
 			stocks = append(stocks, &dto.UserSubscriptionStock{
 				Symbol: subSymbol.StockSymbol.Symbol,
 				Name:   subSymbol.StockSymbol.Name,
-				Status: subSymbol.Subscription.Active,
+				Status: status,
 			})
 		}
 	}
@@ -127,7 +141,7 @@ func (p *userSubscriptionGateway) AddUserSubscriptionStock(ctx context.Context, 
 		return fmt.Errorf("查無此股票代號: %s", stockSymbol)
 	}
 
-	// 取得或建立股票訂閱
+	// 檢查是否已訂閱股票資訊
 	subscription, err := p.subscriptionRepo.GetByUserAndFeature(ctx, userID, uint(valueobject.SubscriptionTypeStockInfo))
 	if err != nil {
 		return fmt.Errorf("取得訂閱失敗: %w", err)
@@ -137,10 +151,10 @@ func (p *userSubscriptionGateway) AddUserSubscriptionStock(ctx context.Context, 
 		return fmt.Errorf("請先訂閱股票資訊")
 	}
 
-	// 建立訂閱股票關聯
+	// 建立訂閱股票關聯（不包含 SubscriptionID）
 	subscriptionSymbol := &entity.SubscriptionSymbol{
-		SubscriptionID: subscription.ID,
-		SymbolID:       symbol.ID,
+		UserID:   userID,
+		SymbolID: symbol.ID,
 	}
 	return p.subscriptionSymbolRepoWriter.Create(ctx, subscriptionSymbol)
 }
@@ -155,26 +169,26 @@ func (p *userSubscriptionGateway) DeleteUserSubscriptionStock(ctx context.Contex
 		return fmt.Errorf("查無此股票代號: %s", stockSymbol)
 	}
 
-	// 取得訂閱
-	subscription, err := p.subscriptionRepo.GetByUserAndFeature(ctx, userID, uint(valueobject.SubscriptionTypeStockInfo))
+	// 直接根據 user_id 和 symbol_id 查找訂閱股票關聯
+	subscriptionSymbols, err := p.subscriptionSymbolRepo.GetUserSubscriptionStockList(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("取得訂閱失敗: %w", err)
-	}
-	if subscription == nil {
-		return fmt.Errorf("未找到訂閱")
+		return fmt.Errorf("取得使用者訂閱股票失敗: %w", err)
 	}
 
-	// 取得訂閱股票關聯
-	subscriptionSymbol, err := p.subscriptionSymbolRepo.GetBySubscriptionAndSymbol(ctx, subscription.ID, symbol.ID)
-	if err != nil {
-		return fmt.Errorf("取得訂閱股票關聯失敗: %w", err)
+	var targetSubscriptionSymbol *entity.SubscriptionSymbol
+	for _, subSymbol := range subscriptionSymbols {
+		if subSymbol.SymbolID == symbol.ID {
+			targetSubscriptionSymbol = subSymbol
+			break
+		}
 	}
-	if subscriptionSymbol == nil {
+
+	if targetSubscriptionSymbol == nil {
 		return fmt.Errorf("未找到訂閱股票")
 	}
 
 	// 刪除訂閱股票關聯
-	return p.subscriptionSymbolRepoWriter.Delete(ctx, subscriptionSymbol.ID)
+	return p.subscriptionSymbolRepoWriter.Delete(ctx, targetSubscriptionSymbol.ID)
 }
 
 func (p *userSubscriptionGateway) DeleteUserSubscriptionItem(ctx context.Context, userID uint, item valueobject.SubscriptionType) error {

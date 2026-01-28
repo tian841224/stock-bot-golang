@@ -12,7 +12,7 @@ type StockSymbol struct {
 }
 
 func (StockSymbol) TableName() string {
-	return "symbols"
+	return "stock_symbols"
 }
 
 func init() {

@@ -46,9 +46,9 @@ func main() {
 
 	gormDB := db.GetDB()
 
-	stockSymbolRepo := repository.NewSymbolRepository(gormDB)
-	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB)
-	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB)
+	stockSymbolRepo := repository.NewSymbolRepository(gormDB, appLogger)
+	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB, appLogger)
+	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB, appLogger)
 	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
 	fugleAPI := fugle.NewFugleAPI(*cfg)
 	stockInfoProvider := stock.NewFinmindStockInfoAdapter(finmindAPI)

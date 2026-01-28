@@ -3,13 +3,13 @@ package models
 // 訂閱股票模型
 type SubscriptionSymbol struct {
 	Model
-	// 訂閱ID
-	SubscriptionID uint `gorm:"column:subscription_id;type:bigint;index;uniqueIndex:idx_sub_symbol,priority:1" json:"subscription_id"`
+	// 使用者ID
+	UserID uint `gorm:"column:user_id;type:bigint;index" json:"user_id"`
 	// 股票ID
-	SymbolID uint `gorm:"column:symbol_id;type:bigint;index;uniqueIndex:idx_sub_symbol,priority:2" json:"symbol_id"`
+	SymbolID uint `gorm:"column:symbol_id;type:bigint;index;uniqueIndex:idx_user_symbol,priority:1" json:"symbol_id"`
 	// 關聯資料表
-	Subscription *Subscription `gorm:"foreignKey:SubscriptionID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
-	StockSymbol  *StockSymbol  `gorm:"foreignKey:SymbolID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	StockSymbol *StockSymbol `gorm:"foreignKey:SymbolID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	User        *User        `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 }
 
 func (SubscriptionSymbol) TableName() string {
