@@ -112,6 +112,52 @@ services:
       retries: 3
       start_period: 40s
 
+  # Stock Notification Scheduler
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # 資料庫設定
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      DB_NAME: ${DB_NAME:-stock-bot-go}
+      DB_LOG: ${DB_LOG:-false}
+      DOCKER_DB_PORT: ${DOCKER_DB_PORT:-5432}
+
+      # Telegram Bot 設定
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      
+      # API Keys
+      FINMIND_TOKEN: ${FINMIND_TOKEN}
+      FUGLE_API_KEY: ${FUGLE_API_KEY}
+      IMGBB_API_KEY: ${IMGBB_API_KEY}
+      
+      # 應用程式設定
+      TZ: Asia/Taipei
+      GIN_MODE: release
+    ports:
+      - "${SCHEDULER_PORT:-8082}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./logs:/root/logs:rw
+      - ./:/app
+      - ./.env:/root/.env
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 volumes:
   stock-bot-go-db:
     driver: local

@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # 建置應用程式
-RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags='-w -s' -o scheduler ./cmd/scheduler
+RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags='-w -s' -o scheduler ./cmd/notification_stock_info
 
 # 使用輕量級的 Alpine 映像作為執行階段
 FROM alpine:latest
