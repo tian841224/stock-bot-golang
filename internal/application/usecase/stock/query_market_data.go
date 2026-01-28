@@ -111,6 +111,12 @@ func (uc *marketDataUsecase) GetStockPrice(ctx context.Context, symbol string, d
 		return nil, fmt.Errorf("查無此股票代號，請重新確認")
 	}
 
+	// 如果 date 為 nil，使用當前時間
+	if date == nil {
+		now := time.Now()
+		date = &now
+	}
+
 	// 判斷時間是否為兩點前，若是則取前一天
 	if date.Hour() < 14 {
 		prevDate := date.AddDate(0, 0, -1)
