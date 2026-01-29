@@ -6,11 +6,14 @@
 
 ### 建置應用程式
 ```bash
-# 建置主要應用程式
+# 建置主要應用程式（Bot 服務）
 go build ./cmd/bot
 
 # 建置股票同步應用程式
 go build ./cmd/sync_stock_info
+
+# 建置通知排程應用程式
+go build ./cmd/notification_stock_info
 
 # 建置所有套件
 go build ./...
@@ -40,10 +43,13 @@ go test -v ./...
 go test ./internal/application/usecase/bot
 go test ./internal/application/usecase/stock
 go test ./internal/application/usecase/health
+go test ./internal/application/usecase/notification
+go test ./internal/application/usecase/stock_sync
 
 # 執行單一測試函式
 go test -v -run TestBotCommandUsecase_ProcessCommand ./internal/application/usecase/bot
 go test -v -run TestValidateStock ./internal/application/usecase/stock
+go test -v -run TestSendNotificationUsecase ./internal/application/usecase/notification
 
 # 以涵蓋率執行測試
 go test -cover ./...
@@ -63,6 +69,34 @@ go mod tidy
 
 # 驗證相依性
 go mod verify
+```
+
+### Docker 相關命令
+```bash
+# 建置 Docker 映像檔
+docker build -t stock-bot-go:latest -f Dockerfile .
+docker build -t stock-bot-sync-go:latest -f Dockerfile.sync .
+docker build -t stock-bot-scheduler-go:latest -f Dockerfile.scheduler .
+
+# 使用 docker-compose 啟動服務（本地開發）
+docker-compose up -d
+
+# 使用 docker-compose 啟動服務（CI/CD 部署）
+docker-compose -f docker-compose_cicd.yml up -d
+
+# 查看服務狀態
+docker-compose ps
+
+# 查看服務日誌
+docker-compose logs -f stock-bot-go
+docker-compose logs -f sync-stock-info-go
+docker-compose logs -f scheduler-go
+
+# 停止服務
+docker-compose down
+
+# 重新建置並啟動服務
+docker-compose up -d --build
 ```
 
 ## 程式碼風格指南
@@ -272,11 +306,14 @@ internal/
 │   │   ├── user.go
 │   │   ├── stock.go
 │   │   ├── subscription.go
+│   │   ├── subscription_symbol.go
+│   │   ├── stock_symbol.go
 │   │   ├── trade_date.go
 │   │   └── feature.go
 │   ├── valueobject/
 │   │   ├── user_type.go
-│   │   └── subscription_type.go
+│   │   ├── subscription_type.go
+│   │   └── market_type.go
 │   ├── service/
 │   │   └── domain_service.go
 │   └── error/
@@ -288,38 +325,78 @@ internal/
 │   │   │   └── bot_command_test.go
 │   │   ├── stock/
 │   │   │   ├── generate_chart.go
+│   │   │   ├── market_data.go
 │   │   │   └── generate_chart_test.go
 │   │   ├── health/
 │   │   │   ├── health_check.go
 │   │   │   └── health_check_test.go
 │   │   ├── notification/
+│   │   │   ├── send_notification.go
+│   │   │   └── schedule_handler.go
 │   │   ├── stock_sync/
+│   │   │   └── sync_stock.go
 │   │   └── user/
+│   │       └── user_management.go
 │   ├── dto/
 │   │   ├── stock_price.go
-│   │   └── user_subscription.go
+│   │   ├── user_subscription.go
+│   │   └── notification.go
 │   └── port/
 │       ├── bot_command_port.go
-│       └── repository.go
+│       ├── repository.go
+│       ├── notification_port.go
+│       └── market_data_port.go
 ├── infrastructure/
 │   ├── adapter/
 │   │   ├── formatter/
+│   │   │   ├── telegram_formatter.go
+│   │   │   ├── line_formatter.go
+│   │   │   └── formatter_adapter.go
 │   │   ├── market/
+│   │   │   ├── market_data_gateway.go
+│   │   │   └── market_chart_gateway.go
 │   │   └── presenter/
+│   │       └── validation_gateway.go
 │   ├── config/
+│   │   └── config.go
 │   ├── external/
 │   │   ├── bot/
+│   │   │   ├── telegram/
+│   │   │   └── line/
 │   │   └── stock/
+│   │       ├── twse/
+│   │       ├── cnyes/
+│   │       ├── fugle/
+│   │       └── finmindtrade/
 │   ├── logging/
+│   │   └── logger.go
 │   └── persistence/
 │       ├── model/
+│       │   └── gorm_models.go
 │       └── postgres/
+│           ├── user_repository.go
+│           ├── subscription_repository.go
+│           ├── stock_symbols_repository.go
+│           ├── subscription_symbol_repository.go
+│           └── trade_date_repository.go
 └── interfaces/
     ├── bot/
     │   ├── telegram/
+    │   │   └── handler.go
     │   └── line/
+    │       └── handler.go
     ├── health/
+    │   └── handler.go
     └── presenter/
+        └── response.go
+
+cmd/
+├── bot/
+│   └── main.go                    # 主要 Bot 服務
+├── sync_stock_info/
+│   └── main.go                    # 股票資料同步服務
+└── notification_stock_info/
+    └── main.go                    # 排程通知服務
 ```
 
 ### 額外的開發工具
@@ -333,6 +410,9 @@ go test -bench=. ./...
 # 生成測試覆蓋率報告
 go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out -o coverage.html
+
+# 執行 golangci-lint（如果已安裝）
+golangci-lint run ./...
 ```
 
 ## Cursor 規則
@@ -346,6 +426,7 @@ go tool cover -html=coverage.out -o coverage.html
 2. 格式化程式碼：`go fmt ./...`
 3. 檢查問題：`go vet ./...`
 4. 確保沒有編譯錯誤：`go build ./...`
+5. 整理相依性：`go mod tidy`
 
 ### 新增功能
 1. 從領域層開始（實體、值物件）
@@ -354,6 +435,22 @@ go tool cover -html=coverage.out -o coverage.html
 4. 新增基礎設施適配器
 5. 建立介面處理器
 6. 撰寫全面的測試
+7. 更新相關文件
+
+### 新增排程任務
+1. 在 `internal/application/usecase/notification/` 中實作業務邏輯
+2. 使用 `ScheduleHandlerUsecase` 包裝排程任務
+3. 在 `cmd/notification_stock_info/main.go` 中配置排程時間
+4. 確保任務支援 context 取消機制
+5. 添加適當的錯誤處理和日誌記錄
+6. 測試排程任務的執行邏輯
+
+### Docker 部署流程
+1. 本地測試：`docker-compose up -d`
+2. 檢查服務健康狀態：`docker-compose ps`
+3. 查看日誌：`docker-compose logs -f [service-name]`
+4. CI/CD 部署：使用 `docker-compose_cicd.yml`
+5. 確保環境變數正確配置在 `.env` 檔案中
 
 ### 程式碼審查檢查清單
 - [ ] Clean Architecture 原則已遵循
@@ -363,5 +460,8 @@ go tool cover -html=coverage.out -o coverage.html
 - [ ] 沒有檢查問題
 - [ ] 已新增適當的記錄
 - [ ] 中文註解用於文件
-- [ ] 介面相容性已維持</content>
+- [ ] 介面相容性已維持
+- [ ] Docker 配置已更新（如適用）
+- [ ] 環境變數已記錄
+- [ ] 資料庫遷移已處理（如適用）</content>
 <parameter name="filePath">C:\Users\Tian\source\repos\stock-bot-clean\AGENTS.md
