@@ -48,7 +48,7 @@ jobs:
         run: |
           go build -o bot ./cmd/bot
           go build -o sync_stock_info ./cmd/sync_stock_info
-          go build -o scheduler ./cmd/scheduler
+          go build -o notification_stock_info ./cmd/notification_stock_info
 
   Push:
     if: github.event_name == 'push'
@@ -114,7 +114,7 @@ jobs:
       - name: 準備部署檔案
         run: |
           mkdir -p artifacts
-          cp docker-compose.yml artifacts/
+          cp docker-compose_cicd.yml artifacts/docker-compose.yml
           cp .env artifacts/.env || true
 
       - name: 壓縮部署封包
