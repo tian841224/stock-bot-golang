@@ -1,0 +1,200 @@
+name: Code Quality Check
+
+on:
+  # 在 Pull Request 時執行
+  pull_request:
+    branches: [ main, develop ]
+  
+  # 在推送到主分支時執行
+  push:
+    branches: [ main ]
+  
+  # 每週一早上 9:00 (台北時間) 自動執行
+  schedule:
+    - cron: '0 1 * * 1'  # UTC 1:00 = 台北時間 9:00
+  
+  # 允許手動觸發
+  workflow_dispatch:
+
+jobs:
+  # 1. 靜態分析 - Deadcode 檢查
+  deadcode-analysis:
+    name: Dead Code Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install deadcode
+        run: go install golang.org/x/tools/cmd/deadcode@latest
+
+      - name: Run deadcode analysis
+        id: deadcode
+        continue-on-error: true
+        run: |
+          echo "## Deadcode Analysis Results" >> $GITHUB_STEP_SUMMARY
+          if deadcode ./... > deadcode_report.txt 2>&1; then
+            echo "✅ No dead code found!" >> $GITHUB_STEP_SUMMARY
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Dead code detected:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat deadcode_report.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "status=warning" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload deadcode report
+        if: steps.deadcode.outputs.status == 'warning'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deadcode-report
+          path: deadcode_report.txt
+          retention-days: 30
+
+  # 2. Go Vet 檢查
+  go-vet:
+    name: Go Vet
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run go vet
+        run: |
+          echo "## Go Vet Results" >> $GITHUB_STEP_SUMMARY
+          if go vet ./...; then
+            echo "✅ No issues found!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Issues detected" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  # 3. golangci-lint 綜合檢查
+  golangci-lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
+
+  # 4. 測試覆蓋率檢查
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run tests with coverage
+        run: |
+          go test -v -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out -o=coverage.txt
+
+      - name: Generate coverage report
+        run: |
+          echo "## Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat coverage.txt | tail -1 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.txt
+          retention-days: 30
+
+  # 5. 程式碼複雜度檢查
+  complexity-check:
+    name: Code Complexity Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install gocyclo
+        run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+
+      - name: Check cyclomatic complexity
+        run: |
+          echo "## Cyclomatic Complexity Report" >> $GITHUB_STEP_SUMMARY
+          echo "Functions with complexity > 10:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          gocyclo -over 10 . >> $GITHUB_STEP_SUMMARY || echo "No complex functions found" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # 6. 依賴安全檢查
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: '-no-fail -fmt sarif -out results.sarif ./...'
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # 7. 程式碼品質總結
+  quality-summary:
+    name: Quality Summary
+    runs-on: ubuntu-latest
+    needs: [deadcode-analysis, go-vet, golangci-lint, test-coverage, complexity-check]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# 📊 程式碼品質檢查總結" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 檢查項目 | 狀態 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dead Code Analysis | ${{ needs.deadcode-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Go Vet | ${{ needs.go-vet.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| golangci-lint | ${{ needs.golangci-lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Coverage | ${{ needs.test-coverage.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Complexity Check | ${{ needs.complexity-check.result }} |" >> $GITHUB_STEP_SUMMARY

@@ -14,39 +14,6 @@ func ToString(v interface{}) string {
 	return str
 }
 
-// ToFloat 將 interface{} 轉換為浮點數
-func ToFloat(v interface{}) float64 {
-	str := ToString(v)
-	if str == "--" || str == "" {
-		return 0
-	}
-	str = strings.ReplaceAll(str, ",", "")
-	str = strings.ReplaceAll(str, "％", "")
-	if str == "+" || str == "-" {
-		return 0
-	}
-	var f float64
-	_, err := fmt.Sscan(str, &f)
-	if err != nil {
-		return 0
-	}
-	return f
-}
-
-// ToInt 將 interface{} 轉換為整數
-func ToInt(v interface{}) int {
-	str := ToString(v)
-	if str == "--" || str == "" {
-		return 0
-	}
-	str = strings.ReplaceAll(str, ",", "")
-	i, err := strconv.Atoi(str)
-	if err != nil {
-		return 0
-	}
-	return i
-}
-
 // ToInt64 將 interface{} 轉換為 int64
 func ToInt64(v interface{}) int64 {
 	str := ToString(v)
@@ -59,29 +26,6 @@ func ToInt64(v interface{}) int64 {
 		return 0
 	}
 	return i
-}
-
-// ExtractUpDownSign 提取漲跌符號
-func ExtractUpDownSign(str string) string {
-	str = strings.TrimSpace(str)
-	if str == "" {
-		return ""
-	}
-	if strings.Contains(str, "+") || strings.Contains(str, "＋") {
-		return "+"
-	}
-	if strings.Contains(str, "-") || strings.Contains(str, "－") {
-		return "-"
-	}
-	return ""
-}
-
-// PercentageChange 計算漲跌幅
-func PercentageChange(changeAmount, openPrice float64) string {
-	if openPrice == 0 {
-		return "0.00%"
-	}
-	return fmt.Sprintf("%.2f%%", (changeAmount/openPrice)*100)
 }
 
 // FormatNumberWithCommas 將數字格式化為千分位字串
@@ -117,7 +61,7 @@ func FormatFloatWithCommas(num float64, precision int) string {
 		decPart = "." + parts[1]
 	}
 
-	// 如果整數部分小於 1000，直接返回
+	// 如果整數部分小於 1000,直接返回
 	if len(intPart) <= 3 {
 		return str
 	}
