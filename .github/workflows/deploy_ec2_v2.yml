@@ -1,0 +1,213 @@
+name: Deploy Stock Bot to EC2
+
+on:
+  push:
+    branches:
+      - feature/v2.0
+  pull_request:
+    branches:
+      - feature/v2.0
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Go 環境
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.24.1"
+
+      - name: 快取 Go 模組
+        uses: actions/cache@v3
+        id: go-cache
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-
+            ${{ runner.os }}-go-
+
+      - name: 下載 Go 依賴
+        if: steps.go-cache.outputs.cache-hit != 'true'
+        run: go mod download
+
+      - name: 驗證 Go 程式碼
+        run: go vet ./...
+
+      - name: 執行 Go 測試
+        run: go test -v ./...
+
+      - name: 建置 Go 應用程式
+        run: |
+          go build -o bot ./cmd/bot
+          go build -o sync_stock_info ./cmd/sync_stock_info
+          go build -o notification_stock_info ./cmd/notification_stock_info
+
+  Push:
+    if: github.event_name == 'push'
+    needs: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登入 Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: 建置並推送主應用程式 Docker 映像檔
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-go:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-go:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-go:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-go:buildcache,mode=max
+
+      - name: 建置並推送同步服務 Docker 映像檔
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.sync
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:buildcache,mode=max
+
+      - name: 建置並推送排程服務 Docker 映像檔
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.scheduler
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-scheduler-go:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-scheduler-go:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-scheduler-go:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-scheduler-go:buildcache,mode=max
+
+  Deploy:
+    if: github.event_name == 'push'
+    needs: Push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 程式碼
+        uses: actions/checkout@v4
+
+      - name: 準備部署檔案
+        run: |
+          mkdir -p artifacts
+          cp docker-compose_cicd.yml artifacts/docker-compose.yml
+          cp .env artifacts/.env || true
+
+      - name: 壓縮部署封包
+        run: tar -czf deploy.tar.gz -C artifacts .
+
+      - name: 上傳至 EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "deploy.tar.gz"
+          target: "~/"
+
+      - name: 部署到 EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            # 設定專案名稱和目錄
+            PROJECT_NAME="${{ github.repository }}"
+            PROJECT_DIR=~/projects/${PROJECT_NAME//\//-}
+            ENV_FILE="${PROJECT_DIR}/.env"
+
+            echo "建立專案目錄: ${PROJECT_DIR}"
+            mkdir -p ${PROJECT_DIR}
+
+            echo "解壓縮部署檔案到專案目錄..."
+            tar -xzf ~/deploy.tar.gz -C ${PROJECT_DIR}
+
+            echo "切換到專案目錄..."
+            cd ${PROJECT_DIR}
+
+            echo "建立 .env 檔案..."
+            cat > ${ENV_FILE} << EOL
+            # 資料庫設定
+            DOCKER_HUB_USERNAME='${{ secrets.DOCKER_HUB_USERNAME }}'
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_USER='${{ secrets.DB_USER }}'
+            DB_PASSWORD='${{ secrets.DB_PASSWORD }}'
+            DB_NAME='${{ secrets.DB_NAME }}'
+            DB_LOG=${{ secrets.DB_LOG }}
+            DOCKER_DB_PORT=${{ secrets.DOCKER_DB_PORT }}
+
+            # LINE Bot 設定
+            CHANNEL_ACCESS_TOKEN='${{ secrets.CHANNEL_ACCESS_TOKEN }}'
+            CHANNEL_SECRET='${{ secrets.CHANNEL_SECRET }}'
+            LINE_BOT_WEBHOOK_PATH='${{ secrets.LINE_BOT_WEBHOOK_PATH }}'
+
+            # Telegram Bot 設定
+            TELEGRAM_ADMIN_CHAT_ID='${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}'
+            TELEGRAM_BOT_TOKEN='${{ secrets.TELEGRAM_BOT_TOKEN }}'
+            TELEGRAM_BOT_WEBHOOK_DOMAIN='${{ secrets.TELEGRAM_BOT_WEBHOOK_DOMAIN }}'
+            TELEGRAM_BOT_WEBHOOK_PATH='${{ secrets.TELEGRAM_BOT_WEBHOOK_PATH }}'
+            TELEGRAM_BOT_SECRET_TOKEN='${{ secrets.TELEGRAM_BOT_SECRET_TOKEN }}'
+
+            # API Keys
+            FINMIND_TOKEN='${{ secrets.FINMIND_TOKEN }}'
+            FUGLE_API_KEY='${{ secrets.FUGLE_API_KEY }}'
+            IMGBB_API_KEY='${{ secrets.IMGBB_API_KEY }}'
+
+            # 應用程式設定
+            APP_PORT=8080
+            TZ=Asia/Taipei
+            GIN_MODE=release
+            EOL
+
+            echo "停止並移除現有容器..."
+            sudo docker compose -p ${PROJECT_NAME//\//-} down || true
+
+            echo "清理未使用的容器和映像檔..."
+            sudo docker container prune -f
+            sudo docker image prune -f
+
+            echo "拉取最新映像檔並啟動服務..."
+            sudo docker compose -p ${PROJECT_NAME//\//-} --env-file ${ENV_FILE} pull
+            sudo docker compose -p ${PROJECT_NAME//\//-} --env-file ${ENV_FILE} up -d
+
+            echo "等待服務啟動..."
+            sleep 10
+
+            echo "檢查服務狀態..."
+            if ! sudo docker compose -p ${PROJECT_NAME//\//-} ps | grep -q "Up"; then
+              echo "服務啟動失敗!"
+              sudo docker compose -p ${PROJECT_NAME//\//-} logs
+              exit 1
+            fi
+
+            echo "部署完成!"
+            sudo docker compose -p ${PROJECT_NAME//\//-} ps
+
+            echo "清理部署封包..."
+            rm -f ~/deploy.tar.gz
