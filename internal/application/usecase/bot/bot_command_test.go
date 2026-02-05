@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/tian841224/stock-bot/internal/application/dto"
-	"github.com/tian841224/stock-bot/internal/domain/valueobject"
 )
 
 type mockMarketDataUsecase struct {
@@ -19,21 +18,6 @@ type mockMarketDataUsecase struct {
 	GetLatestTradeDateFunc            func(ctx context.Context) (time.Time, error)
 	GetLatestTradeDateByDateRangeFunc func(ctx context.Context, startDate time.Time, endDate time.Time) ([]time.Time, error)
 	GetStockNewsFunc                  func(ctx context.Context, symbol string) ([]dto.StockNews, error)
-}
-
-type mockMarketChartUsecase struct {
-	GetRevenueChartFunc           func(ctx context.Context, symbol string) (*dto.RevenueChart, error)
-	GetHistoricalCandlesChartFunc func(ctx context.Context, symbol string) (*dto.KlineCandlesChart, error)
-	GetPerformanceChartFunc       func(ctx context.Context, symbol string) (*dto.StockPerformanceChart, error)
-}
-
-type mockFormatterPort struct {
-	FormatDailyMarketInfoFunc  func(marketData *[]dto.DailyMarketInfo, userType valueobject.UserType) string
-	FormatStockPerformanceFunc func(stockPerformance *dto.StockPerformanceData, userType valueobject.UserType) string
-	FormatStockPriceFunc       func(stockPrice *dto.StockPrice, userType valueobject.UserType) string
-	FormatStockRevenueFunc     func(stockRevenue *dto.StockRevenue, userType valueobject.UserType) string
-	FormatStockCompanyInfoFunc func(stockCompanyInfo *dto.StockCompanyInfo, userType valueobject.UserType) string
-	FormatTopVolumeStockFunc   func(topVolume *[]dto.TopVolume, userType valueobject.UserType) string
 }
 
 func (m *mockMarketDataUsecase) GetDailyMarketInfo(ctx context.Context, count int) (*[]dto.DailyMarketInfo, error) {
