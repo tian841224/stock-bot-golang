@@ -1,0 +1,27 @@
+# IDE and Editor
+.vscode/
+.idea/
+
+# AI Assistant
+.claude/
+.agent/
+TODO.md
+AGENTS.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Environment
+.env
+.env.local
