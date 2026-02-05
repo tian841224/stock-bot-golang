@@ -106,8 +106,9 @@ func (p *TelegramMessageProcessor) routeCommand(ctx context.Context, command, ar
 	case "/list":
 		return p.tgCommandUsecase.GetSubscribed(ctx, chatID)
 	default:
-		return p.handleUnknownCommand(chatID)
+		// return p.handleUnknownCommand(chatID)
 	}
+	return nil
 }
 
 // 各個命令的具體處理邏輯
@@ -198,9 +199,9 @@ func (p *TelegramMessageProcessor) handleUnsubscribedItems(ctx context.Context, 
 	return p.tgCommandUsecase.UnsubscribedItems(ctx, chatID, item)
 }
 
-func (p *TelegramMessageProcessor) handleUnknownCommand(chatID int64) error {
-	return p.sendError(chatID, "指令不存在，輸入 /start 查看說明")
-}
+// func (p *TelegramMessageProcessor) handleUnknownCommand(chatID int64) error {
+// 	return p.sendError(chatID, "指令不存在，輸入 /start 查看說明")
+// }
 
 // 輔助方法
 

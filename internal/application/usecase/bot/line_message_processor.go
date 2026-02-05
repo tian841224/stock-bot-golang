@@ -91,9 +91,10 @@ func (p *LineMessageProcessor) routeCommand(ctx context.Context, command, arg1, 
 		return p.handleDailyMarket(ctx, replyToken, arg1)
 	case "/n":
 		return p.lineCommandUsecase.GetStockNews(ctx, arg1, replyToken)
-	default:
-		return p.handleUnknownCommand(replyToken)
+		// default:
+		// 	return p.handleUnknownCommand(replyToken)
 	}
+	return nil
 }
 
 // 各個命令的具體處理邏輯
@@ -156,9 +157,9 @@ func (p *LineMessageProcessor) handleDailyMarket(ctx context.Context, replyToken
 	return p.lineCommandUsecase.GetDailyMarketInfo(ctx, replyToken, count)
 }
 
-func (p *LineMessageProcessor) handleUnknownCommand(replyToken string) error {
-	return p.sendError(replyToken, "指令不存在，輸入 /start 查看說明")
-}
+// func (p *LineMessageProcessor) handleUnknownCommand(replyToken string) error {
+// 	return p.sendError(replyToken, "指令不存在，輸入 /start 查看說明")
+// }
 
 // 輔助方法
 
