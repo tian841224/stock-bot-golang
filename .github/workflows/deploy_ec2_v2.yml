@@ -3,10 +3,12 @@ name: Deploy Stock Bot to EC2
 on:
   push:
     branches:
-      - feature/v2.0
+      - master
+      - main
   pull_request:
     branches:
-      - feature/v2.0
+      - master
+      - main
 
 jobs:
   Build:
