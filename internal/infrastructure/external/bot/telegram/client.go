@@ -30,14 +30,15 @@ func NewBot(cfg config.Config, log logger.Logger) (*TgBotClient, error) {
 		if _, err := client.MakeRequest("setWebhook", params); err != nil {
 			return nil, err
 		}
-	} else {
-		webhookConfig, err := tgbotapi.NewWebhook(webhookURL)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = client.Request(webhookConfig); err != nil {
-			return nil, err
-		}
+		return &TgBotClient{Client: client, logger: log}, nil
+	}
+
+	webhookConfig, err := tgbotapi.NewWebhook(webhookURL)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = client.Request(webhookConfig); err != nil {
+		return nil, err
 	}
 	return &TgBotClient{Client: client, logger: log}, nil
 }

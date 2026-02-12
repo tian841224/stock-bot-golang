@@ -7,15 +7,15 @@ import (
 	"strings"
 )
 
-// ToString 將 interface{} 轉換為字串
-func ToString(v interface{}) string {
+// ToString 將 any 轉換為字串
+func ToString(v any) string {
 	str := fmt.Sprint(v)
 	str = strings.TrimSpace(str)
 	return str
 }
 
-// ToInt64 將 interface{} 轉換為 int64
-func ToInt64(v interface{}) int64 {
+// ToInt64 將 any 轉換為 int64
+func ToInt64(v any) int64 {
 	str := ToString(v)
 	if str == "--" || str == "" {
 		return 0

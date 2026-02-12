@@ -139,14 +139,15 @@ func (p *TelegramMessageProcessor) handleStockPrice(ctx context.Context, chatID 
 			return p.sendError(chatID, "日期格式錯誤，請使用 YYYY-MM-DD 格式\n例如：2025-12-09")
 		}
 		datePtr = &parsed
-	} else {
-		// 如果為空則取今天
-		now := time.Now()
+		return p.tgCommandUsecase.GetStockPrice(ctx, symbol, datePtr, chatID)
+	}
+
+	// 如果為空則取今天
+	now := time.Now()
+	datePtr = &now
+	if now.Hour() < 14 {
+		now = now.AddDate(0, 0, -1)
 		datePtr = &now
-		if now.Hour() < 14 {
-			now = now.AddDate(0, 0, -1)
-			datePtr = &now
-		}
 	}
 
 	return p.tgCommandUsecase.GetStockPrice(ctx, symbol, datePtr, chatID)

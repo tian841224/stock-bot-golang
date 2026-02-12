@@ -125,14 +125,15 @@ func (p *LineMessageProcessor) handleStockPrice(ctx context.Context, replyToken,
 			return p.sendError(replyToken, "日期格式錯誤，請使用 YYYY-MM-DD 格式\n例如：2025-12-09")
 		}
 		datePtr = &parsed
-	} else {
-		// 如果為空則取今天
-		now := time.Now()
+		return p.lineCommandUsecase.GetStockPrice(ctx, symbol, datePtr, replyToken)
+	}
+
+	// 如果為空則取今天
+	now := time.Now()
+	datePtr = &now
+	if now.Hour() < 14 {
+		now = now.AddDate(0, 0, -1)
 		datePtr = &now
-		if now.Hour() < 14 {
-			now = now.AddDate(0, 0, -1)
-			datePtr = &now
-		}
 	}
 
 	return p.lineCommandUsecase.GetStockPrice(ctx, symbol, datePtr, replyToken)

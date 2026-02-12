@@ -69,7 +69,8 @@ func (d *postgresDatabase) connectDB(cfg *config.Config) error {
 	var logLevel logger.LogLevel
 	if cfg.DB_LOG_MODE {
 		logLevel = logger.Info
-	} else {
+	}
+	if !cfg.DB_LOG_MODE {
 		logLevel = logger.Silent
 	}
 

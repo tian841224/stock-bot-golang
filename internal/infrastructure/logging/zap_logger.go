@@ -62,7 +62,7 @@ func Time(key string, value time.Time) Field {
 }
 
 // Any 建立任意類型欄位
-func Any(key string, value interface{}) Field {
+func Any(key string, value any) Field {
 	return zap.Any(key, value)
 }
 
@@ -77,9 +77,9 @@ func convertFields(fields ...Field) []zap.Field {
 	for _, field := range fields {
 		if zapField, ok := field.(zap.Field); ok {
 			zapFields = append(zapFields, zapField)
-		} else {
-			zapFields = append(zapFields, zap.Any("field", field))
+			continue
 		}
+		zapFields = append(zapFields, zap.Any("field", field))
 	}
 	return zapFields
 }
@@ -126,7 +126,8 @@ func NewLogger() (Logger, error) {
 	var cfg zap.Config
 	if strings.EqualFold(mode, "release") {
 		cfg = zap.NewProductionConfig()
-	} else {
+	}
+	if !strings.EqualFold(mode, "release") {
 		cfg = zap.NewDevelopmentConfig()
 	}
 
