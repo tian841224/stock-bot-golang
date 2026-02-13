@@ -90,6 +90,9 @@ func (r *postgresUserRepository) GetOrCreate(ctx context.Context, accountID stri
 			Status:    true,
 		}
 		err = r.Create(ctx, user)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return user, nil
 }

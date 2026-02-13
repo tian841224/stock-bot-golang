@@ -42,11 +42,3 @@ func WithPagination(offset, limit int) QueryOption {
 		return db.Offset(offset).Limit(limit)
 	}
 }
-
-// applyOptions 增加查詢選項
-func applyOptions(db *gorm.DB, opts []QueryOption) *gorm.DB {
-	for _, opt := range opts {
-		db = opt(db)
-	}
-	return db
-}
