@@ -8,9 +8,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	healthUsecase "github.com/tian841224/stock-bot/internal/application/usecase/health"
 	notificationUseCase "github.com/tian841224/stock-bot/internal/application/usecase/notification"
 	"github.com/tian841224/stock-bot/internal/application/usecase/stock"
 	formatterAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/formatter"
+	healthAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/health"
 	marketAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/market"
 	presenterAdapter "github.com/tian841224/stock-bot/internal/infrastructure/adapter/presenter"
 	"github.com/tian841224/stock-bot/internal/infrastructure/config"
@@ -22,6 +25,7 @@ import (
 	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 	database "github.com/tian841224/stock-bot/internal/infrastructure/persistence"
 	repository "github.com/tian841224/stock-bot/internal/infrastructure/persistence/postgres"
+	healthHandler "github.com/tian841224/stock-bot/internal/interfaces/health"
 )
 
 func main() {
@@ -67,6 +71,13 @@ func main() {
 	stockSymbolRepo := repository.NewSymbolRepository(gormDB, appLogger)
 	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB, appLogger)
 	subscriptionSymbolRepo := repository.NewSubscriptionSymbolRepository(gormDB, appLogger)
+	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB, appLogger)
+
+	// ============================================================
+	// Health Check
+	// ============================================================
+	healthChecker := healthAdapter.NewHealthChecker(gormDB, finmindAPI, fugleAPI, syncMetadataRepo)
+	healthUsecaseInstance := healthUsecase.NewHealthCheckUsecase(healthChecker, "stock-scheduler", "1.0.0", appLogger)
 
 	// ============================================================
 	// Adapter / Gateway
@@ -126,6 +137,18 @@ func main() {
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// 啟動健康檢查 HTTP 服務器
+	go func() {
+		router := gin.Default()
+		healthHandlerInstance := healthHandler.NewHealthHandler(healthUsecaseInstance, appLogger)
+		router.GET("/health", healthHandlerInstance.HealthCheck)
+
+		appLogger.Info("健康檢查服務器啟動，監聽端口: 8081")
+		if err := router.Run(":8081"); err != nil {
+			appLogger.Error("健康檢查服務器啟動失敗", logger.Error(err))
+		}
+	}()
 
 	// 啟動排程通知任務
 	go runScheduledNotifications(ctx, scheduleHandlerUsecase, appLogger)
