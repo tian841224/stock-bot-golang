@@ -104,9 +104,9 @@ func (r *postgresStockSymbolsRepository) GetBySubscriptionID(ctx context.Context
 		return nil, err
 	}
 
-	var entities []*entity.StockSymbol
-	for _, symbol := range symbols {
-		entities = append(entities, r.toEntity(symbol))
+	entities := make([]*entity.StockSymbol, len(symbols))
+	for i, symbol := range symbols {
+		entities[i] = r.toEntity(symbol)
 	}
 	return entities, nil
 }
