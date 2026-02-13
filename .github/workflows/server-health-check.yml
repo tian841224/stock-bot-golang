@@ -1,0 +1,116 @@
+name: Server Health Check
+
+on:
+  schedule:
+    # 每小時執行一次
+    - cron: '0 * * * *'
+  workflow_dispatch: # 允許手動觸發測試
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢查伺服器健康狀態
+        id: check_status
+        run: |
+          # 呼叫健康檢查端點並取得完整回應
+          RESPONSE=$(curl -s --max-time 15 "${{ secrets.SERVER_URL }}/health" -w "\n%{http_code}")
+          
+          # 分離 HTTP 狀態碼和回應內容
+          STATUS_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Status Code: $STATUS_CODE"
+          echo "Response Body: $BODY"
+          
+          # 輸出到 GitHub Actions 變數
+          echo "status_code=$STATUS_CODE" >> $GITHUB_OUTPUT
+          echo "response_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # 解析 JSON 回應（需要 jq）
+          if [ "$STATUS_CODE" -eq 200 ] || [ "$STATUS_CODE" -eq 503 ]; then
+            OVERALL_STATUS=$(echo "$BODY" | jq -r '.status // "unknown"')
+            OVERALL_HEALTHY=$(echo "$BODY" | jq -r '.overall_healthy // false')
+            
+            echo "overall_status=$OVERALL_STATUS" >> $GITHUB_OUTPUT
+            echo "overall_healthy=$OVERALL_HEALTHY" >> $GITHUB_OUTPUT
+            
+            # 檢查各項服務狀態
+            DB_STATUS=$(echo "$BODY" | jq -r '.checks.database.status // "unknown"')
+            FINMIND_STATUS=$(echo "$BODY" | jq -r '.checks.finmind_api.status // "unknown"')
+            FUGLE_STATUS=$(echo "$BODY" | jq -r '.checks.fugle_api.status // "unknown"')
+            SYNC_STATUS=$(echo "$BODY" | jq -r '.checks.last_sync.status // "unknown"')
+            RESOURCE_STATUS=$(echo "$BODY" | jq -r '.checks.resources.status // "unknown"')
+            
+            echo "db_status=$DB_STATUS" >> $GITHUB_OUTPUT
+            echo "finmind_status=$FINMIND_STATUS" >> $GITHUB_OUTPUT
+            echo "fugle_status=$FUGLE_STATUS" >> $GITHUB_OUTPUT
+            echo "sync_status=$SYNC_STATUS" >> $GITHUB_OUTPUT
+            echo "resource_status=$RESOURCE_STATUS" >> $GITHUB_OUTPUT
+            
+            # 如果整體狀態為 unhealthy，視為失敗
+            if [ "$OVERALL_STATUS" = "unhealthy" ]; then
+              echo "❌ 健康檢查失敗：系統狀態為 unhealthy"
+              exit 1
+            fi
+            
+            # 如果狀態為 degraded，發出警告但不失敗
+            if [ "$OVERALL_STATUS" = "degraded" ]; then
+              echo "⚠️ 健康檢查警告：系統狀態為 degraded"
+              echo "is_degraded=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            # HTTP 狀態碼異常
+            echo "❌ HTTP 狀態碼異常: $STATUS_CODE"
+            exit 1
+          fi
+
+      - name: 發送 Telegram 告警通知 (Unhealthy)
+        if: failure()
+        run: |
+          # 組合詳細的告警訊息
+          MESSAGE="🚨 *主機健康檢查失敗* 🚨%0A%0A"
+          MESSAGE="${MESSAGE}*服務*：Stock Bot%0A"
+          MESSAGE="${MESSAGE}*狀態*：${{ steps.check_status.outputs.overall_status || '無法連線' }}%0A"
+          MESSAGE="${MESSAGE}*HTTP 狀態碼*：${{ steps.check_status.outputs.status_code || '000' }}%0A"
+          MESSAGE="${MESSAGE}*時間*：$(date '+%Y-%m-%d %H:%M:%S') (UTC)%0A%0A"
+          
+          # 如果有詳細狀態資訊，加入各項檢查結果
+          if [ -n "${{ steps.check_status.outputs.db_status }}" ]; then
+            MESSAGE="${MESSAGE}*各項檢查狀態*：%0A"
+            MESSAGE="${MESSAGE}• 資料庫：${{ steps.check_status.outputs.db_status }}%0A"
+            MESSAGE="${MESSAGE}• Finmind API：${{ steps.check_status.outputs.finmind_status }}%0A"
+            MESSAGE="${MESSAGE}• Fugle API：${{ steps.check_status.outputs.fugle_status }}%0A"
+            MESSAGE="${MESSAGE}• 同步狀態：${{ steps.check_status.outputs.sync_status }}%0A"
+            MESSAGE="${MESSAGE}• 系統資源：${{ steps.check_status.outputs.resource_status }}%0A"
+          fi
+          
+          MESSAGE="${MESSAGE}%0A請立即檢查伺服器！"
+          
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}" \
+            -d "text=$MESSAGE" \
+            -d "parse_mode=Markdown"
+
+      - name: 發送 Telegram 警告通知 (Degraded)
+        if: success() && steps.check_status.outputs.is_degraded == 'true'
+        run: |
+          # 組合降級警告訊息
+          MESSAGE="⚠️ *主機健康檢查警告* ⚠️%0A%0A"
+          MESSAGE="${MESSAGE}*服務*：Stock Bot%0A"
+          MESSAGE="${MESSAGE}*狀態*：degraded (部分服務降級)%0A"
+          MESSAGE="${MESSAGE}*時間*：$(date '+%Y-%m-%d %H:%M:%S') (UTC)%0A%0A"
+          MESSAGE="${MESSAGE}*各項檢查狀態*：%0A"
+          MESSAGE="${MESSAGE}• 資料庫：${{ steps.check_status.outputs.db_status }}%0A"
+          MESSAGE="${MESSAGE}• Finmind API：${{ steps.check_status.outputs.finmind_status }}%0A"
+          MESSAGE="${MESSAGE}• Fugle API：${{ steps.check_status.outputs.fugle_status }}%0A"
+          MESSAGE="${MESSAGE}• 同步狀態：${{ steps.check_status.outputs.sync_status }}%0A"
+          MESSAGE="${MESSAGE}• 系統資源：${{ steps.check_status.outputs.resource_status }}%0A"
+          MESSAGE="${MESSAGE}%0A系統仍可運作，但建議檢查降級的服務。"
+          
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}" \
+            -d "text=$MESSAGE" \
+            -d "parse_mode=Markdown"

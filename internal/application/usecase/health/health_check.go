@@ -38,43 +38,43 @@ type HealthCheckResponse struct {
 	Timestamp      string                 `json:"timestamp"`
 	Service        string                 `json:"service"`
 	Version        string                 `json:"version"`
-	Checks         map[string]interface{} `json:"checks"`
+	Checks         map[string]any `json:"checks"`
 	OverallHealthy bool                   `json:"overall_healthy"`
 }
 
 func (h *healthCheckUsecase) GetHealthStatus(ctx context.Context) (*HealthCheckResponse, error) {
-	checks := make(map[string]interface{})
+	checks := make(map[string]any)
 
 	dbStatus := h.checker.CheckDatabase(ctx)
-	checks["database"] = map[string]interface{}{
+	checks["database"] = map[string]any{
 		"status":           dbStatus.Status,
 		"message":          dbStatus.Message,
 		"response_time_ms": dbStatus.ResponseTime,
 	}
 
 	finmindStatus := h.checker.CheckAPI(ctx, "finmind")
-	checks["finmind_api"] = map[string]interface{}{
+	checks["finmind_api"] = map[string]any{
 		"status":           finmindStatus.Status,
 		"message":          finmindStatus.Message,
 		"response_time_ms": finmindStatus.ResponseTime,
 	}
 
 	fugleStatus := h.checker.CheckAPI(ctx, "fugle")
-	checks["fugle_api"] = map[string]interface{}{
+	checks["fugle_api"] = map[string]any{
 		"status":           fugleStatus.Status,
 		"message":          fugleStatus.Message,
 		"response_time_ms": fugleStatus.ResponseTime,
 	}
 
 	syncStatus := h.checker.CheckSyncStatus(ctx)
-	checks["last_sync"] = map[string]interface{}{
+	checks["last_sync"] = map[string]any{
 		"status": syncStatus.Status,
-		"taiwan_stocks": map[string]interface{}{
+		"taiwan_stocks": map[string]any{
 			"last_success": syncStatus.TaiwanStocks.LastSuccess,
 			"total_count":  syncStatus.TaiwanStocks.TotalCount,
 			"last_error":   syncStatus.TaiwanStocks.LastError,
 		},
-		"us_stocks": map[string]interface{}{
+		"us_stocks": map[string]any{
 			"last_success": syncStatus.USStocks.LastSuccess,
 			"total_count":  syncStatus.USStocks.TotalCount,
 			"last_error":   syncStatus.USStocks.LastError,
@@ -82,7 +82,7 @@ func (h *healthCheckUsecase) GetHealthStatus(ctx context.Context) (*HealthCheckR
 	}
 
 	resourceStatus := h.checker.CheckResources(ctx)
-	checks["resources"] = map[string]interface{}{
+	checks["resources"] = map[string]any{
 		"status":          resourceStatus.Status,
 		"memory_usage_mb": resourceStatus.MemoryUsageMB,
 		"goroutines":      resourceStatus.Goroutines,
