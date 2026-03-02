@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/tian841224/stock-bot/internal/application/usecase/bot"
 	healthUsecase "github.com/tian841224/stock-bot/internal/application/usecase/health"
@@ -32,6 +34,7 @@ import (
 	linebot "github.com/tian841224/stock-bot/internal/interfaces/bot/line"
 	telegram "github.com/tian841224/stock-bot/internal/interfaces/bot/telegram"
 	healthHandler "github.com/tian841224/stock-bot/internal/interfaces/health"
+	"github.com/tian841224/stock-bot/internal/interfaces/middleware"
 )
 
 func main() {
@@ -46,13 +49,13 @@ func main() {
 		log.Fatalf("初始化 Logger 失敗: %v", err)
 	}
 
-	appLogger.Info("應用程式啟動中...")
-	appLogger.Info("載入配置成功")
+	appLogger.Info("starting application...")
+	appLogger.Info("config loaded")
 
 	// 初始化資料庫
 	db := database.NewDatabase()
 	if err := db.Init(cfg); err != nil {
-		appLogger.Fatal("初始化資料庫失敗", logger.Error(err))
+		appLogger.Fatal("failed to init database", logger.Error(err))
 	}
 	defer db.Close()
 
@@ -62,7 +65,7 @@ func main() {
 	// 建立 Repository 層（Persistence）
 	// ============================================================
 
-	appLogger.Info("初始化 Repository 層...")
+	appLogger.Info("initializing repository layer...")
 	userRepo := repository.NewPostgresUserRepository(gormDB, appLogger)
 	stockSymbolRepo := repository.NewSymbolRepository(gormDB, appLogger)
 	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB, appLogger)
@@ -70,44 +73,44 @@ func main() {
 	subscriptionSymbolRepo := repository.NewSubscriptionSymbolRepository(gormDB, appLogger)
 	featureReader, _ := repository.NewFeatureRepository(gormDB, appLogger)
 	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB, appLogger)
-	appLogger.Info("Feature Repository 初始化成功，預設功能資料已建立")
+	appLogger.Info("feature repository initialized")
 
 	// ============================================================
 	// 建立外部服務客戶端（External Services）
 	// ============================================================
-	appLogger.Info("初始化外部服務客戶端...")
+	appLogger.Info("initializing external service clients...")
 
-	// Telegram Bot 客戶端
-	appLogger.Info("初始化 Telegram Bot 客戶端...")
+	// Telegram Bot client
+	appLogger.Info("initializing Telegram Bot client...")
 	tgClient, err := tgbotInfra.NewBot(*cfg, appLogger)
 	if err != nil {
-		appLogger.Fatal("建立 Telegram Bot 客戶端失敗", logger.Error(err))
+		appLogger.Fatal("failed to create Telegram Bot client", logger.Error(err))
 	}
-	appLogger.Info("Telegram Bot 客戶端初始化成功")
+	appLogger.Info("Telegram Bot client initialized")
 
-	// LINE Bot 客戶端
-	appLogger.Info("初始化 LINE Bot 客戶端...")
+	// LINE Bot client
+	appLogger.Info("initializing LINE Bot client...")
 	lineClient, err := linebotInfra.NewBot(*cfg, appLogger)
 	if err != nil {
-		appLogger.Fatal("建立 LINE Bot 客戶端失敗", logger.Error(err))
+		appLogger.Fatal("failed to create LINE Bot client", logger.Error(err))
 	}
-	appLogger.Info("LINE Bot 客戶端初始化成功")
+	appLogger.Info("LINE Bot client initialized")
 
-	// 圖片上傳服務
-	appLogger.Info("初始化外部服務客戶端...")
+	// image upload service
+	appLogger.Info("initializing external service clients...")
 	imgbbClient := imgbb.NewImgBBClient(cfg.IMGBB_API_KEY)
 
 	// 股票 API 客戶端
-	fugleAPI := fugle.NewFugleAPI(*cfg)
-	twseAPI := twse.NewTwseAPI()
-	cnyesAPI := cnyes.NewCnyesAPI()
-	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
-	appLogger.Info("外部服務客戶端初始化成功")
+	fugleAPI := fugle.NewFugleAPI(*cfg, appLogger)
+	twseAPI := twse.NewTwseAPI(appLogger)
+	cnyesAPI := cnyes.NewCnyesAPI(appLogger)
+	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg, appLogger)
+	appLogger.Info("external service clients initialized")
 
 	// ============================================================
 	// 建立 Adapter 層（Gateway/Presenter）
 	// ============================================================
-	appLogger.Info("初始化 Adapter 層...")
+	appLogger.Info("initializing adapter layer...")
 	// Validation Gateway
 	validationGateway := presenterAdapter.NewValidationGateway(nil, stockSymbolRepo)
 
@@ -148,12 +151,12 @@ func main() {
 		telegramFormatter,
 		lineFormatter,
 	)
-	appLogger.Info("Adapter 層初始化成功")
+	appLogger.Info("adapter layer initialized")
 
 	// ============================================================
 	// 建立 Application 層（Use Cases）
 	// ============================================================
-	appLogger.Info("初始化 Use Case 層...")
+	appLogger.Info("initializing use case layer...")
 	// Stock Use Cases
 	marketDataUsecase := stock.NewMarketDataUsecase(
 		marketDataGateway,
@@ -202,12 +205,12 @@ func main() {
 		lineClient,
 		imgbbClient,
 	)
-	appLogger.Info("Use Case 層初始化成功")
+	appLogger.Info("use case layer initialized")
 
 	// ============================================================
 	// 建立 Interfaces 層（Message Processors）
 	// ============================================================
-	appLogger.Info("初始化 Message Processor 層...")
+	appLogger.Info("initializing message processor layer...")
 	tgProcessor := bot.NewTelegramMessageProcessor(
 		tgCommandUsecase,
 		userRepo,
@@ -221,27 +224,28 @@ func main() {
 		lineClient,
 		appLogger,
 	)
-	appLogger.Info("Message Processor 層初始化成功")
+	appLogger.Info("message processor layer initialized")
 
 	// ============================================================
 	// 啟動 Web 服務器（HTTP Handlers）
 	// ============================================================
-	appLogger.Info("正在啟動 Web 服務器...")
+	appLogger.Info("starting web server...")
 
 	// 建立 Gin Router
 	router, err := setupRouter(cfg, tgProcessor, lineProcessor, lineClient, healthUsecaseInstance, appLogger)
 	if err != nil {
-		appLogger.Fatal("設定路由失敗", logger.Error(err))
+		appLogger.Fatal("failed to setup router", logger.Error(err))
 	}
 
-	appLogger.Info("Web 服務器已啟動，監聽端口: 8080")
-	appLogger.Info("Telegram Webhook 路徑: " + cfg.TELEGRAM_BOT_WEBHOOK_PATH)
-	appLogger.Info("LINE Webhook 路徑: " + cfg.LINE_BOT_WEBHOOK_PATH)
+	appLogger.Info("application started",
+		logger.String("port", "8080"),
+		logger.String("tg_webhook", cfg.TELEGRAM_BOT_WEBHOOK_PATH),
+		logger.String("line_webhook", cfg.LINE_BOT_WEBHOOK_PATH))
 
 	// 在 goroutine 中啟動服務器
 	go func() {
 		if err := router.Run(":8080"); err != nil {
-			appLogger.Fatal("HTTP 服務器啟動失敗", logger.Error(err))
+			appLogger.Fatal("HTTP server start failed", logger.Error(err))
 		}
 	}()
 
@@ -252,13 +256,13 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	appLogger.Info("正在關閉應用程式...")
+	appLogger.Info("shutting down application...")
 
-	// 清理資源
+	// cleanup resources
 	ctx := context.Background()
-	_ = ctx // 用於優雅關閉的 context
+	_ = ctx // context for graceful shutdown
 
-	appLogger.Info("應用程式已關閉")
+	appLogger.Info("application shutdown complete")
 }
 
 // setupRouter 設定 HTTP 路由
@@ -271,22 +275,30 @@ func setupRouter(
 	log logger.Logger,
 ) (*gin.Engine, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("配置不能為空")
+		return nil, fmt.Errorf("config must not be nil")
 	}
 	if tgProcessor == nil {
-		return nil, fmt.Errorf("Telegram 處理器不能為空")
+		return nil, fmt.Errorf("telegram processor must not be nil")
 	}
 	if lineProcessor == nil {
-		return nil, fmt.Errorf("LINE 處理器不能為空")
+		return nil, fmt.Errorf("line processor must not be nil")
 	}
 	if lineClient == nil {
-		return nil, fmt.Errorf("LINE 客戶端不能為空")
+		return nil, fmt.Errorf("line client must not be nil")
 	}
 	if log == nil {
-		return nil, fmt.Errorf("Logger 不能為空")
+		return nil, fmt.Errorf("logger must not be nil")
 	}
 
-	router := gin.Default()
+	router := gin.New()
+	if zapL, ok := logger.ExtractZapLogger(log); ok {
+		router.Use(ginzap.Ginzap(zapL, time.RFC3339, true))
+		router.Use(ginzap.RecoveryWithZap(zapL, true))
+	} else {
+		router.Use(gin.Recovery())
+	}
+	// 為每個 HTTP request 產生唯一 request_id 並注入 context
+	router.Use(middleware.RequestID(log))
 
 	// 健康檢查端點
 	healthHandlerInstance := healthHandler.NewHealthHandler(healthUsecase, log)
@@ -295,12 +307,12 @@ func setupRouter(
 	// Telegram Webhook
 	tgHandler := telegram.NewTgHandler(cfg, tgProcessor, log)
 	telegram.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
-	log.Info("Telegram Webhook 路由註冊成功")
+	log.Info("Telegram Webhook registered")
 
 	// LINE Webhook
 	lineHandler := linebot.NewLineBotHandler(lineClient, lineProcessor, log)
 	linebot.RegisterRoutes(router, lineHandler, cfg.LINE_BOT_WEBHOOK_PATH)
-	log.Info("LINE Webhook 路由註冊成功")
+	log.Info("LINE Webhook registered")
 
 	return router, nil
 }

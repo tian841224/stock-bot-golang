@@ -2,6 +2,7 @@
 package logger
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -22,6 +23,8 @@ type Logger interface {
 	Panic(msg string, fields ...Field)
 	Fatal(msg string, fields ...Field)
 	Sync() error
+	// With 回傳一個帶有預設欄位的子 Logger，用於傳播 request_id 等 context 資訊
+	With(fields ...Field) Logger
 }
 
 // 便利函數：建立各種類型的日誌欄位
@@ -117,6 +120,43 @@ func (l *zapLogger) Fatal(msg string, fields ...Field) {
 // Sync 同步日誌緩衝區
 func (l *zapLogger) Sync() error {
 	return l.logger.Sync()
+}
+
+// With 回傳一個帶有預設欄位的子 Logger
+func (l *zapLogger) With(fields ...Field) Logger {
+	return &zapLogger{logger: l.logger.With(convertFields(fields...)...)}
+}
+
+// ZapLogger 回傳底層的 *zap.Logger，僅供 infrastructure 層使用
+func (l *zapLogger) ZapLogger() *zap.Logger {
+	return l.logger
+}
+
+// ExtractZapLogger 從 Logger interface 中提取底層 *zap.Logger（若可用）
+func ExtractZapLogger(l Logger) (*zap.Logger, bool) {
+	if zl, ok := l.(*zapLogger); ok {
+		return zl.logger, true
+	}
+	return nil, false
+}
+
+// ============================================================
+// Context 工具函式：讓 logger 可透過 context.Context 傳遞
+// ============================================================
+
+type contextKey struct{}
+
+// WithLogger 將 logger 注入 context，回傳新的 context
+func WithLogger(ctx context.Context, l Logger) context.Context {
+	return context.WithValue(ctx, contextKey{}, l)
+}
+
+// FromContext 從 context 取出 logger；若找不到則回傳 fallback（避免 nil panic）
+func FromContext(ctx context.Context, fallback Logger) Logger {
+	if l, ok := ctx.Value(contextKey{}).(Logger); ok {
+		return l
+	}
+	return fallback
 }
 
 // NewLogger 建立新的 Logger 實例

@@ -217,7 +217,7 @@ func (u *telegramCommandUsecase) GetSubscribed(ctx context.Context, chatID int64
 }
 
 func (u *telegramCommandUsecase) sendError(chatID int64, message string) error {
-	u.logger.Warn("發送訊息失敗", logger.Int64("chat_id", chatID), logger.String("message", message))
+	u.logger.Info("sending error reply to user", logger.Int64("chat_id", chatID), logger.String("message", message))
 	return u.client.SendMessage(chatID, message)
 }
 

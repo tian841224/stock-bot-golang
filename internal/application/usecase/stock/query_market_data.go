@@ -40,7 +40,7 @@ func NewMarketDataUsecase(
 func (uc *marketDataUsecase) GetDailyMarketInfo(ctx context.Context, count int) (*[]dto.DailyMarketInfo, error) {
 	result, err := uc.market.GetDailyMarketInfo(ctx, count)
 	if err != nil {
-		uc.logger.Error("取得大盤快照失敗", logger.Error(err))
+		uc.logger.Error("failed to get daily market info", logger.Error(err))
 		return nil, fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -65,7 +65,7 @@ func (uc *marketDataUsecase) GetStockPerformance(ctx context.Context, symbol str
 	}
 	result, err := uc.market.GetStockPerformance(ctx, stock.Symbol)
 	if err != nil {
-		uc.logger.Error("取得股票績效失敗", logger.Error(err))
+		uc.logger.Error("failed to get stock performance", logger.String("symbol", symbol), logger.Error(err))
 		return nil, fmt.Errorf("取得績效資料失敗，請稍後再試")
 	}
 	if result == nil {
@@ -81,7 +81,7 @@ func (uc *marketDataUsecase) GetStockPerformance(ctx context.Context, symbol str
 func (uc *marketDataUsecase) GetTopVolumeStock(ctx context.Context) (*[]dto.TopVolume, error) {
 	result, err := uc.market.GetTopVolumeStock(ctx)
 	if err != nil {
-		uc.logger.Error("取得交易量排行失敗", logger.Error(err))
+		uc.logger.Error("failed to get top volume stocks", logger.Error(err))
 		return nil, fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -127,15 +127,15 @@ func (uc *marketDataUsecase) GetStockPrice(ctx context.Context, symbol string, d
 	tradeDates, err := uc.market.GetLatestTradeDateByDateRange(ctx, date.AddDate(0, 0, -30), *date)
 
 	if err != nil {
-		uc.logger.Error("取得最近交易日失敗", logger.Error(err))
+		uc.logger.Error("failed to get latest trade dates", logger.Error(err))
 		return nil, fmt.Errorf("無法取得最近交易日")
 	}
 
 	tradeDate := tradeDates[len(tradeDates)-1]
-	uc.logger.Info("取得股價資訊", logger.String("symbol", symbol), logger.Time("tradeDate", tradeDate))
+	uc.logger.Info("fetching stock price", logger.String("symbol", symbol), logger.Time("tradeDate", tradeDate))
 	result, err := uc.market.GetStockPrice(ctx, symbol, &tradeDate)
 	if err != nil {
-		uc.logger.Error("取得股價資訊失敗", logger.Error(err))
+		uc.logger.Error("failed to get stock price", logger.String("symbol", symbol), logger.Error(err))
 		return nil, fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -147,11 +147,11 @@ func (uc *marketDataUsecase) GetStockPrice(ctx context.Context, symbol string, d
 
 	// 取得前一天收盤價
 	prevTradeDate := tradeDates[len(tradeDates)-2]
-	uc.logger.Info("取得股價資訊", logger.String("symbol", symbol), logger.Time("prevTradeDate", prevTradeDate))
+	uc.logger.Info("fetching prev day stock price", logger.String("symbol", symbol), logger.Time("prevTradeDate", prevTradeDate))
 	prevTradeDateResults, err := uc.market.GetStockPrice(ctx, symbol, &prevTradeDate)
 
 	if err != nil {
-		uc.logger.Error("取得股價資訊失敗", logger.Error(err))
+		uc.logger.Error("failed to get prev day stock price", logger.String("symbol", symbol), logger.Error(err))
 		return nil, fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -244,7 +244,7 @@ func (uc *marketDataUsecase) GetStockNews(ctx context.Context, symbol string, li
 	}
 	articles, err := uc.market.GetStockNews(ctx, stock.Symbol)
 	if err != nil {
-		uc.logger.Error("取得股票新聞失敗", logger.Error(err))
+		uc.logger.Error("failed to get stock news", logger.String("symbol", symbol), logger.Error(err))
 		return nil, fmt.Errorf("取得新聞失敗，請稍後再試")
 	}
 	if len(articles) > limit {
