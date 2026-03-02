@@ -38,7 +38,7 @@ func (uc *marketChartUsecase) GetRevenueChart(ctx context.Context, symbol string
 
 	chartBytes, err := uc.marketChart.GetRevenueChart(ctx, stock.Symbol)
 	if err != nil {
-		uc.logger.Error("取得營收圖表失敗", logger.Error(err))
+		uc.logger.Error("failed to get revenue chart", logger.String("symbol", symbol), logger.Error(err))
 		return nil, fmt.Errorf("取得營收圖表失敗: %w", err)
 	}
 
@@ -61,7 +61,7 @@ func (uc *marketChartUsecase) GetHistoricalCandlesChart(ctx context.Context, sym
 
 	chartBytes, stockName, err := uc.marketChart.GetHistoricalCandlesChart(ctx, stock.Symbol)
 	if err != nil {
-		uc.logger.Error("取得歷史K線圖失敗", logger.Error(err))
+		uc.logger.Error("failed to get historical candles chart", logger.String("symbol", symbol), logger.Error(err))
 		return nil, fmt.Errorf("取得歷史K線圖失敗: %w", err)
 	}
 
@@ -83,7 +83,7 @@ func (uc *marketChartUsecase) GetPerformanceChart(ctx context.Context, symbol st
 
 	chart, err := uc.marketChart.GetPerformanceChart(ctx, stock.Symbol)
 	if err != nil {
-		uc.logger.Error("取得績效圖表失敗", logger.Error(err))
+		uc.logger.Error("failed to get performance chart", logger.String("symbol", symbol), logger.Error(err))
 		return nil, fmt.Errorf("查無資料，請確認後再試")
 	}
 

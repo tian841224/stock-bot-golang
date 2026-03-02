@@ -45,7 +45,7 @@ func (p *TelegramMessageProcessor) ProcessUpdate(ctx context.Context, update *tg
 	chatID := update.Message.Chat.ID
 	messageText := update.Message.Text
 
-	p.logger.Info("收到 Telegram 訊息",
+	p.logger.Info("received telegram message",
 		logger.Int64("chat_id", chatID),
 		logger.String("message", messageText))
 
@@ -57,7 +57,7 @@ func (p *TelegramMessageProcessor) ProcessUpdate(ctx context.Context, update *tg
 
 	// 路由到對應的命令處理器
 	if err := p.routeCommand(ctx, command, arg1, arg2, chatID); err != nil {
-		p.logger.Error("處理命令失敗",
+		p.logger.Error("failed to handle command",
 			logger.String("command", command),
 			logger.String("arg1", arg1),
 			logger.String("arg2", arg2),
@@ -207,7 +207,7 @@ func (p *TelegramMessageProcessor) handleUnsubscribedItems(ctx context.Context, 
 // 輔助方法
 
 func (p *TelegramMessageProcessor) sendError(chatID int64, message string) error {
-	p.logger.Warn("發送錯誤訊息",
+	p.logger.Info("sending error reply to user",
 		logger.Int64("chat_id", chatID),
 		logger.String("message", message))
 	return p.tgClient.SendMessage(chatID, message)

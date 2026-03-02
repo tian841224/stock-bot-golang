@@ -34,7 +34,7 @@ func NewLineBotHandler(
 func (h *LineBotHandler) Webhook(c *gin.Context) {
 	events, err := h.botClient.Client.ParseRequest(c.Request)
 	if err != nil {
-		h.logger.Error("解析 LINE webhook 失敗", logger.Error(err))
+		h.logger.Error("failed to parse LINE webhook request", logger.Error(err))
 		c.AbortWithStatus(400)
 		return
 	}
@@ -46,17 +46,22 @@ func (h *LineBotHandler) Webhook(c *gin.Context) {
 	go func(evts []*linebot.Event) {
 		defer func() {
 			if r := recover(); r != nil {
-				h.logger.Error("處理 LINE 更新發生 panic", logger.Any("recover", r))
+				h.logger.Error("panic recovering LINE update", logger.Any("recover", r))
 			}
 		}()
 
 		ctx := context.Background()
 		for _, event := range evts {
 			if event.Type == linebot.EventTypeMessage {
+				// 建立帶有 request_id 的子 logger，讓整次請求的 log 可串聯
+				reqLogger := h.logger.With(
+					logger.String("request_id", "line-"+event.ReplyToken),
+					logger.String("reply_token", event.ReplyToken),
+				)
 				switch message := event.Message.(type) {
 				case *linebot.TextMessage:
 					if err := h.messageProcessor.ProcessTextMessage(ctx, event, message); err != nil {
-						h.logger.Error("處理 LINE 文字訊息失敗", logger.Error(err))
+						reqLogger.Error("failed to process LINE text message", logger.Error(err))
 					}
 				}
 			}

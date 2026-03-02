@@ -52,6 +52,7 @@ func (m *mockLogger) Debug(msg string, fields ...logger.Field) {}
 func (m *mockLogger) Panic(msg string, fields ...logger.Field) {}
 func (m *mockLogger) Fatal(msg string, fields ...logger.Field) {}
 func (m *mockLogger) Sync() error                              { return nil }
+func (m *mockLogger) With(fields ...logger.Field) logger.Logger { return m }
 
 func TestHealthCheckUsecase_GetHealthStatus_AllHealthy(t *testing.T) {
 	mockChecker := &mockHealthChecker{}

@@ -22,6 +22,8 @@ type Logger interface {
 	Panic(msg string, fields ...Field)
 	Fatal(msg string, fields ...Field)
 	Sync() error
+	// With 回傳一個帶有預設欄位的子 Logger，用於傳播 request_id 等 context 資訊
+	With(fields ...Field) Logger
 }
 
 // 便利函數：建立各種類型的日誌欄位
@@ -117,6 +119,11 @@ func (l *zapLogger) Fatal(msg string, fields ...Field) {
 // Sync 同步日誌緩衝區
 func (l *zapLogger) Sync() error {
 	return l.logger.Sync()
+}
+
+// With 回傳一個帶有預設欄位的子 Logger
+func (l *zapLogger) With(fields ...Field) Logger {
+	return &zapLogger{logger: l.logger.With(convertFields(fields...)...)}
 }
 
 // NewLogger 建立新的 Logger 實例

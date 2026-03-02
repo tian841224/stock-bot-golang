@@ -23,7 +23,7 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 
 	status, err := h.healthUsecase.GetHealthStatus(ctx)
 	if err != nil {
-		h.logger.Error("健康檢查失敗", logger.Error(err))
+		h.logger.Error("health check failed", logger.Error(err))
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}

@@ -2,6 +2,7 @@ package tgbot
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/tian841224/stock-bot/internal/application/usecase/bot"
@@ -40,10 +41,10 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 		}
 	}
 
-	// 讀取並解析 update（可視需求擴充）
+	// 讀取並解析 update
 	var update tgbotapi.Update
 	if err := c.ShouldBindJSON(&update); err != nil {
-		h.logger.Error("解析 Telegram webhook JSON 失敗", logger.Error(err))
+		h.logger.Error("failed to parse telegram webhook JSON", logger.Error(err))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -52,15 +53,23 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 	c.Status(http.StatusOK)
 
 	go func(u tgbotapi.Update) {
+		// 建立帶有 request_id 的子 logger，讓整次請求的 log 可串聯
+		var chatID int64
+		if u.Message != nil {
+			chatID = u.Message.Chat.ID
+		}
+		requestID := fmt.Sprintf("tg-%d-%d", chatID, c.Request.Context().Value("request_nano"))
+		reqLogger := h.logger.With(logger.String("request_id", requestID), logger.Int64("chat_id", chatID))
+
 		defer func() {
 			if r := recover(); r != nil {
-				h.logger.Error("處理 Telegram 更新發生 panic", logger.Any("recover", r))
+				reqLogger.Error("panic recovering telegram update", logger.Any("recover", r))
 			}
 		}()
 
 		ctx := context.Background()
 		if err := h.messageProcessor.ProcessUpdate(ctx, &u); err != nil {
-			h.logger.Error("處理 Telegram 更新失敗", logger.Error(err))
+			reqLogger.Error("failed to process telegram update", logger.Error(err))
 		}
 	}(update)
 }

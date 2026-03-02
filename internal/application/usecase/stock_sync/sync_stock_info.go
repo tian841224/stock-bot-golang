@@ -42,29 +42,29 @@ func NewStockSyncUsecase(
 }
 
 func (s *stockSyncUsecase) SyncTaiwanStockInfo(ctx context.Context) error {
-	s.logger.Info("開始同步台灣股票資訊...")
+	s.logger.Info("start syncing TW stock symbols")
 	now := time.Now()
 
 	symbols, err := s.stockInfoProvider.GetTaiwanStockInfo(ctx)
 	if err != nil {
-		s.logger.Error("取得台灣股票資訊失敗", logger.Error(err))
+		s.logger.Error("failed to get TW stock symbols", logger.Error(err))
 		s.updateSyncMetadata(ctx, "TW", &now, nil, 0, err.Error())
 		return err
 	}
 
-	s.logger.Info("成功取得股票資訊", logger.Int("count", len(symbols)))
+	s.logger.Info("fetched TW stock symbols", logger.Int("count", len(symbols)))
 
 	successCount, errorCount, err := s.asyncBatchUpsert(ctx, symbols)
 	if err != nil {
-		s.logger.Error("批次更新股票資訊失敗", logger.Error(err))
+		s.logger.Error("batch upsert TW stock symbols failed", logger.Error(err))
 		s.updateSyncMetadata(ctx, "TW", &now, nil, successCount, err.Error())
 		return err
 	}
 
-	s.logger.Info("股票資訊同步完成",
-		logger.Int("成功", successCount),
-		logger.Int("失敗", errorCount),
-		logger.Int("總計", len(symbols)))
+	s.logger.Info("TW stock symbol sync completed",
+		logger.Int("success", successCount),
+		logger.Int("failed", errorCount),
+		logger.Int("total", len(symbols)))
 
 	s.updateSyncMetadata(ctx, "TW", &now, &now, successCount, "")
 
@@ -72,29 +72,29 @@ func (s *stockSyncUsecase) SyncTaiwanStockInfo(ctx context.Context) error {
 }
 
 func (s *stockSyncUsecase) SyncUSStockInfo(ctx context.Context) error {
-	s.logger.Info("開始同步美股股票資訊...")
+	s.logger.Info("start syncing US stock symbols")
 	now := time.Now()
 
 	symbols, err := s.stockInfoProvider.GetUSStockInfo(ctx)
 	if err != nil {
-		s.logger.Error("取得美股股票資訊失敗", logger.Error(err))
+		s.logger.Error("failed to get US stock symbols", logger.Error(err))
 		s.updateSyncMetadata(ctx, "US", &now, nil, 0, err.Error())
 		return err
 	}
 
-	s.logger.Info("成功取得股票資訊", logger.Int("count", len(symbols)))
+	s.logger.Info("fetched US stock symbols", logger.Int("count", len(symbols)))
 
 	successCount, errorCount, err := s.asyncBatchUpsert(ctx, symbols)
 	if err != nil {
-		s.logger.Error("批次更新股票資訊失敗", logger.Error(err))
+		s.logger.Error("batch upsert US stock symbols failed", logger.Error(err))
 		s.updateSyncMetadata(ctx, "US", &now, nil, successCount, err.Error())
 		return err
 	}
 
-	s.logger.Info("股票資訊同步完成",
-		logger.Int("成功", successCount),
-		logger.Int("失敗", errorCount),
-		logger.Int("總計", len(symbols)))
+	s.logger.Info("US stock symbol sync completed",
+		logger.Int("success", successCount),
+		logger.Int("failed", errorCount),
+		logger.Int("total", len(symbols)))
 
 	s.updateSyncMetadata(ctx, "US", &now, &now, successCount, "")
 
@@ -102,24 +102,24 @@ func (s *stockSyncUsecase) SyncUSStockInfo(ctx context.Context) error {
 }
 
 func (s *stockSyncUsecase) SyncTaiwanStockTradingDate(ctx context.Context) error {
-	s.logger.Info("開始同步台股交易日...")
+	s.logger.Info("start syncing TW trade dates")
 
 	tradeDates, err := s.stockInfoProvider.GetTaiwanStockTradingDate(ctx)
 	if err != nil {
-		s.logger.Error("取得台股交易日失敗", logger.Error(err))
+		s.logger.Error("failed to get TW trade dates", logger.Error(err))
 		return err
 	}
 
-	s.logger.Info("成功取得交易日", logger.Int("count", len(tradeDates)))
+	s.logger.Info("fetched TW trade dates", logger.Int("count", len(tradeDates)))
 
 	err = s.tradeDateRepo.BatchCreateTradeDates(ctx, tradeDates)
 	if err != nil {
-		s.logger.Error("批次更新交易日失敗", logger.Error(err))
+		s.logger.Error("failed to batch create trade dates", logger.Error(err))
 		return err
 	}
 
-	s.logger.Info("交易日同步完成",
-		logger.Int("總計", len(tradeDates)))
+	s.logger.Info("TW trade date sync completed",
+		logger.Int("total", len(tradeDates)))
 
 	return nil
 }
@@ -151,11 +151,11 @@ func (s *stockSyncUsecase) asyncBatchUpsert(ctx context.Context, symbols []*enti
 
 	// 使用去重後的資料進行批次切分
 	batches := s.splitIntoBatches(uniqueSymbols, batchSize)
-	s.logger.Info("開始非同步批次處理",
-		logger.Int("原始數量", len(symbols)),
-		logger.Int("去重後數量", len(uniqueSymbols)),
-		logger.Int("批次數", len(batches)),
-		logger.Int("工作者數", maxWorkers))
+	s.logger.Info("start async batch upsert",
+		logger.Int("original_count", len(symbols)),
+		logger.Int("deduplicated_count", len(uniqueSymbols)),
+		logger.Int("batch_count", len(batches)),
+		logger.Int("worker_count", maxWorkers))
 
 	batchChan := make(chan []*entity.StockSymbol, len(batches))
 	resultChan := make(chan batchResult, len(batches))
@@ -180,17 +180,17 @@ func (s *stockSyncUsecase) asyncBatchUpsert(ctx context.Context, symbols []*enti
 
 	for result := range resultChan {
 		if result.err != nil {
-			s.logger.Warn("批次處理失敗",
-				logger.Int("批次ID", result.batchID),
+			s.logger.Warn("batch processing failed",
+				logger.Int("batch_id", result.batchID),
 				logger.Error(result.err))
 		}
 		totalSuccess += result.successCount
 		totalError += result.errorCount
 	}
 
-	s.logger.Info("非同步批次處理完成",
-		logger.Int("成功", totalSuccess),
-		logger.Int("失敗", totalError))
+	s.logger.Info("async batch upsert completed",
+		logger.Int("success", totalSuccess),
+		logger.Int("failed", totalError))
 
 	return totalSuccess, totalError, nil
 }
@@ -218,10 +218,10 @@ func (s *stockSyncUsecase) worker(ctx context.Context, workerID int, batchChan <
 		}
 
 		batchID++
-		s.logger.Debug("工作者開始處理批次",
-			logger.Int("工作者ID", workerID),
-			logger.Int("批次ID", batchID),
-			logger.Int("批次大小", len(batch)))
+		s.logger.Debug("worker processing batch",
+			logger.Int("worker_id", workerID),
+			logger.Int("batch_id", batchID),
+			logger.Int("batch_size", len(batch)))
 
 		successCount, errorCount, err := s.stockSymbolRepo.BatchUpsert(ctx, batch)
 
@@ -232,11 +232,11 @@ func (s *stockSyncUsecase) worker(ctx context.Context, workerID int, batchChan <
 			err:          err,
 		}
 
-		s.logger.Debug("工作者完成批次處理",
-			logger.Int("工作者ID", workerID),
-			logger.Int("批次ID", batchID),
-			logger.Int("成功", successCount),
-			logger.Int("失敗", errorCount))
+		s.logger.Debug("worker finished batch",
+			logger.Int("worker_id", workerID),
+			logger.Int("batch_id", batchID),
+			logger.Int("success", successCount),
+			logger.Int("failed", errorCount))
 	}
 }
 
@@ -269,6 +269,6 @@ func (s *stockSyncUsecase) updateSyncMetadata(ctx context.Context, market string
 	}
 
 	if err := s.syncMetadataRepo.Upsert(ctx, metadata); err != nil {
-		s.logger.Error("更新同步元資料失敗", logger.Error(err), logger.String("market", market))
+		s.logger.Error("failed to update sync metadata", logger.Error(err), logger.String("market", market))
 	}
 }
