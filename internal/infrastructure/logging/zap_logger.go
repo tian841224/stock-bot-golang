@@ -126,6 +126,19 @@ func (l *zapLogger) With(fields ...Field) Logger {
 	return &zapLogger{logger: l.logger.With(convertFields(fields...)...)}
 }
 
+// ZapLogger 回傳底層的 *zap.Logger，僅供 infrastructure 層使用
+func (l *zapLogger) ZapLogger() *zap.Logger {
+	return l.logger
+}
+
+// ExtractZapLogger 從 Logger interface 中提取底層 *zap.Logger
+func ExtractZapLogger(l Logger) (*zap.Logger, bool) {
+	if zl, ok := l.(*zapLogger); ok {
+		return zl.logger, true
+	}
+	return nil, false
+}
+
 // NewLogger 建立新的 Logger 實例
 func NewLogger() (Logger, error) {
 	mode := os.Getenv("GIN_MODE")

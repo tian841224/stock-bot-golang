@@ -60,10 +60,10 @@ func main() {
 		appLogger.Fatal("failed to create Telegram Bot client", logger.Error(err))
 	}
 
-	fugleAPI := fugle.NewFugleAPI(*cfg)
-	twseAPI := twse.NewTwseAPI()
-	cnyesAPI := cnyes.NewCnyesAPI()
-	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
+	fugleAPI := fugle.NewFugleAPI(*cfg, appLogger)
+	twseAPI := twse.NewTwseAPI(appLogger)
+	cnyesAPI := cnyes.NewCnyesAPI(appLogger)
+	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg, appLogger)
 
 	// ============================================================
 	// Repository

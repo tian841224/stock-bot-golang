@@ -49,8 +49,8 @@ func main() {
 	stockSymbolRepo := repository.NewSymbolRepository(gormDB, appLogger)
 	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB, appLogger)
 	tradeDateRepo := repository.NewPostgresTradeDateRepository(gormDB, appLogger)
-	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
-	fugleAPI := fugle.NewFugleAPI(*cfg)
+	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg, appLogger)
+	fugleAPI := fugle.NewFugleAPI(*cfg, appLogger)
 	stockInfoProvider := stock.NewFinmindStockInfoAdapter(finmindAPI)
 	stockSyncUsecase := stock_sync.NewStockSyncUsecase(stockSymbolRepo, stockInfoProvider, syncMetadataRepo, tradeDateRepo, appLogger)
 

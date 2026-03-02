@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/tian841224/stock-bot/internal/application/usecase/bot"
 	healthUsecase "github.com/tian841224/stock-bot/internal/application/usecase/health"
@@ -98,10 +100,10 @@ func main() {
 	imgbbClient := imgbb.NewImgBBClient(cfg.IMGBB_API_KEY)
 
 	// 股票 API 客戶端
-	fugleAPI := fugle.NewFugleAPI(*cfg)
-	twseAPI := twse.NewTwseAPI()
-	cnyesAPI := cnyes.NewCnyesAPI()
-	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
+	fugleAPI := fugle.NewFugleAPI(*cfg, appLogger)
+	twseAPI := twse.NewTwseAPI(appLogger)
+	cnyesAPI := cnyes.NewCnyesAPI(appLogger)
+	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg, appLogger)
 	appLogger.Info("external service clients initialized")
 
 	// ============================================================
@@ -272,22 +274,28 @@ func setupRouter(
 	log logger.Logger,
 ) (*gin.Engine, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("配置不能為空")
+		return nil, fmt.Errorf("config must not be nil")
 	}
 	if tgProcessor == nil {
-		return nil, fmt.Errorf("Telegram 處理器不能為空")
+		return nil, fmt.Errorf("telegram processor must not be nil")
 	}
 	if lineProcessor == nil {
-		return nil, fmt.Errorf("LINE 處理器不能為空")
+		return nil, fmt.Errorf("line processor must not be nil")
 	}
 	if lineClient == nil {
-		return nil, fmt.Errorf("LINE 客戶端不能為空")
+		return nil, fmt.Errorf("line client must not be nil")
 	}
 	if log == nil {
-		return nil, fmt.Errorf("Logger 不能為空")
+		return nil, fmt.Errorf("logger must not be nil")
 	}
 
-	router := gin.Default()
+	router := gin.New()
+	if zapL, ok := logger.ExtractZapLogger(log); ok {
+		router.Use(ginzap.Ginzap(zapL, time.RFC3339, true))
+		router.Use(ginzap.RecoveryWithZap(zapL, true))
+	} else {
+		router.Use(gin.Recovery())
+	}
 
 	// 健康檢查端點
 	healthHandlerInstance := healthHandler.NewHealthHandler(healthUsecase, log)

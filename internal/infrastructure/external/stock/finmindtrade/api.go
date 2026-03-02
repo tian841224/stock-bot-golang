@@ -8,15 +8,17 @@ import (
 
 	"github.com/tian841224/stock-bot/internal/infrastructure/config"
 	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/finmindtrade/dto"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 )
 
 type FinmindTradeAPI struct {
 	baseURL    string
 	httpHeader http.Header
 	client     *http.Client
+	logger     logger.Logger
 }
 
-func NewFinmindTradeAPI(cfg config.Config) *FinmindTradeAPI {
+func NewFinmindTradeAPI(cfg config.Config, log logger.Logger) *FinmindTradeAPI {
 	header := make(http.Header)
 	header.Set("Accept", "application/json")
 	if cfg.FINMIND_TOKEN != "" {
@@ -26,6 +28,7 @@ func NewFinmindTradeAPI(cfg config.Config) *FinmindTradeAPI {
 		baseURL:    "https://api.finmindtrade.com/api/v4/data",
 		client:     &http.Client{Timeout: 10 * time.Second},
 		httpHeader: header,
+		logger:     log,
 	}
 }
 
@@ -107,6 +110,8 @@ func (f *FinmindTradeAPI) GetUSStockPrice(requestDto dto.FinmindtradeRequestDto)
 // GetTodayInfo 大盤資訊(法人/資券/美股大盤)
 func (f *FinmindTradeAPI) GetTodayInfo() (response dto.TodayInfoResponseDto, err error) {
 	baseURL := "https://api.web.finmindtrade.com/v2/today_info"
+	f.logger.Debug("finmind API request", logger.String("url", baseURL))
+
 	req, err := http.NewRequest("GET", baseURL, nil)
 	if err != nil {
 		return response, err
@@ -115,16 +120,20 @@ func (f *FinmindTradeAPI) GetTodayInfo() (response dto.TodayInfoResponseDto, err
 
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return response, fmt.Errorf("無法連接到外部 API: %v", err)
+		f.logger.Error("finmind API request failed", logger.String("url", baseURL), logger.Error(err))
+		return response, fmt.Errorf("failed to connect to finmind API: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return response, fmt.Errorf("外部 API 回應錯誤，狀態碼: %d", resp.StatusCode)
+		f.logger.Error("finmind API returned non-200",
+			logger.String("url", baseURL),
+			logger.Int("status_code", resp.StatusCode))
+		return response, fmt.Errorf("finmind API error, status: %d", resp.StatusCode)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return response, fmt.Errorf("無法解析回應 JSON: %v", err)
+		return response, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	return response, nil
 }
@@ -132,6 +141,8 @@ func (f *FinmindTradeAPI) GetTodayInfo() (response dto.TodayInfoResponseDto, err
 // GetTaiwanStockAnalysis 取得台灣股票分析
 func (f *FinmindTradeAPI) GetTaiwanStockAnalysis(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockAnalysisResponseDto, err error) {
 	baseURL := "https://api.web.finmindtrade.com/v2/taiwan_stock_analysis"
+	f.logger.Debug("finmind API request", logger.String("url", baseURL), logger.String("stock_id", requestDto.StockID))
+
 	req, err := http.NewRequest("GET", baseURL, nil)
 	if err != nil {
 		return response, err
@@ -146,22 +157,28 @@ func (f *FinmindTradeAPI) GetTaiwanStockAnalysis(requestDto dto.FinmindtradeRequ
 
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return response, fmt.Errorf("無法連接到外部 API: %v", err)
+		f.logger.Error("finmind API request failed", logger.String("url", baseURL), logger.Error(err))
+		return response, fmt.Errorf("failed to connect to finmind API: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return response, fmt.Errorf("外部 API 回應錯誤，狀態碼: %d", resp.StatusCode)
+		f.logger.Error("finmind API returned non-200",
+			logger.String("url", baseURL),
+			logger.Int("status_code", resp.StatusCode))
+		return response, fmt.Errorf("finmind API error, status: %d", resp.StatusCode)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return response, fmt.Errorf("無法解析回應 JSON: %v", err)
+		return response, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	return response, nil
 }
 
 func (f *FinmindTradeAPI) GetTaiwanStockAnalysisPlot(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockAnalysisPlotResponseDto, err error) {
 	baseURL := "https://api.web.finmindtrade.com/v2/taiwan_stock_analysis_plot"
+	f.logger.Debug("finmind API request", logger.String("url", baseURL), logger.String("stock_id", requestDto.StockID))
+
 	req, err := http.NewRequest("GET", baseURL, nil)
 	if err != nil {
 		return response, err
@@ -176,16 +193,20 @@ func (f *FinmindTradeAPI) GetTaiwanStockAnalysisPlot(requestDto dto.Finmindtrade
 
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return response, fmt.Errorf("無法連接到外部 API: %v", err)
+		f.logger.Error("finmind API request failed", logger.String("url", baseURL), logger.Error(err))
+		return response, fmt.Errorf("failed to connect to finmind API: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return response, fmt.Errorf("外部 API 回應錯誤，狀態碼: %d", resp.StatusCode)
+		f.logger.Error("finmind API returned non-200",
+			logger.String("url", baseURL),
+			logger.Int("status_code", resp.StatusCode))
+		return response, fmt.Errorf("finmind API error, status: %d", resp.StatusCode)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return response, fmt.Errorf("無法解析回應 JSON: %v", err)
+		return response, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	return response, nil
 }
@@ -194,7 +215,7 @@ func (f *FinmindTradeAPI) GetTaiwanStockAnalysisPlot(requestDto dto.Finmindtrade
 func doRequest[T any](f *FinmindTradeAPI, requestDto dto.FinmindtradeRequestDto) (response T, err error) {
 	req, err := f.getRequest()
 	if err != nil {
-		return response, fmt.Errorf("無法建立Request: %v", err)
+		return response, fmt.Errorf("failed to build request: %v", err)
 	}
 	query := req.URL.Query()
 	if requestDto.DataSet != "" {
@@ -213,18 +234,29 @@ func doRequest[T any](f *FinmindTradeAPI, requestDto dto.FinmindtradeRequestDto)
 		query.Add("end_date", requestDto.EndDate)
 	}
 	req.URL.RawQuery = query.Encode()
+
+	f.logger.Debug("finmind API request",
+		logger.String("dataset", requestDto.DataSet),
+		logger.String("stock_id", requestDto.StockID))
+
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return response, fmt.Errorf("無法連接到外部 API: %v", err)
+		f.logger.Error("finmind API request failed",
+			logger.String("dataset", requestDto.DataSet),
+			logger.Error(err))
+		return response, fmt.Errorf("failed to connect to finmind API: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return response, fmt.Errorf("外部 API 回應錯誤，狀態碼: %d", resp.StatusCode)
+		f.logger.Error("finmind API returned non-200",
+			logger.String("dataset", requestDto.DataSet),
+			logger.Int("status_code", resp.StatusCode))
+		return response, fmt.Errorf("finmind API error, status: %d", resp.StatusCode)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return response, fmt.Errorf("無法解析回應 JSON: %v", err)
+		return response, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 
 	return response, nil
