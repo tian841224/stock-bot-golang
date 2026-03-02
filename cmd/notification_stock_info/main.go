@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -159,15 +160,17 @@ func main() {
 	appLogger.Info("=== notification service stopped ===")
 }
 
-func runScheduledNotifications(ctx context.Context, scheduler notificationUseCase.ScheduleHandlerUsecase, log logger.Logger) {
+func runScheduledNotifications(ctx context.Context, sched notificationUseCase.ScheduleHandlerUsecase, log logger.Logger) {
 	log.Info("scheduled notification service started")
 
-	// 啟動時立刻執行一次
+	// 啟動時立刻執行一次（帶獨立 job_id）
 	log.Info("running initial notification tasks...")
-	if err := scheduler.RunScheduledTasks(ctx); err != nil {
-		log.Error("initial notification task failed", logger.Error(err))
+	initJobID := fmt.Sprintf("notify-init-%d", time.Now().UnixNano())
+	initCtx := logger.WithLogger(ctx, log.With(logger.String("job_id", initJobID)))
+	if err := sched.RunScheduledTasks(initCtx); err != nil {
+		log.Error("initial notification task failed", logger.String("job_id", initJobID), logger.Error(err))
 	} else {
-		log.Info("initial notification task completed")
+		log.Info("initial notification task completed", logger.String("job_id", initJobID))
 	}
 
 	// 設定每天下午三點 (台北時間) 執行
@@ -195,11 +198,14 @@ func runScheduledNotifications(ctx context.Context, scheduler notificationUseCas
 			log.Info("scheduled notification task stopping")
 			return
 		case <-time.After(duration):
-			log.Info("running scheduled notification task (15:00 Taipei)...")
-			if err := scheduler.RunScheduledTasks(ctx); err != nil {
-				log.Error("scheduled notification task failed", logger.Error(err))
+			// 每次觸發產生獨立 job_id，方便追蹤單次排程的完整鏈路
+			jobID := fmt.Sprintf("notify-%d", time.Now().UnixNano())
+			jobCtx := logger.WithLogger(ctx, log.With(logger.String("job_id", jobID)))
+			log.Info("running scheduled notification task (15:00 Taipei)...", logger.String("job_id", jobID))
+			if err := sched.RunScheduledTasks(jobCtx); err != nil {
+				log.Error("scheduled notification task failed", logger.String("job_id", jobID), logger.Error(err))
 			} else {
-				log.Info("scheduled notification task completed")
+				log.Info("scheduled notification task completed", logger.String("job_id", jobID))
 			}
 		}
 	}

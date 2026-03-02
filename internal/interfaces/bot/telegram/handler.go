@@ -1,8 +1,6 @@
 package tgbot
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/tian841224/stock-bot/internal/application/usecase/bot"
@@ -44,7 +42,9 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 	// 讀取並解析 update
 	var update tgbotapi.Update
 	if err := c.ShouldBindJSON(&update); err != nil {
-		h.logger.Error("failed to parse telegram webhook JSON", logger.Error(err))
+		// 從 context 取出已帶有 request_id 的 logger
+		reqLogger := logger.FromContext(c.Request.Context(), h.logger)
+		reqLogger.Error("failed to parse telegram webhook JSON", logger.Error(err))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -52,14 +52,17 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 	// 先回應 200，背景處理，避免 Telegram 重送
 	c.Status(http.StatusOK)
 
+	// 複製 request context（包含 request_id logger）傳入 goroutine
+	reqCtx := c.Request.Context()
+
 	go func(u tgbotapi.Update) {
-		// 建立帶有 request_id 的子 logger，讓整次請求的 log 可串聯
+		// 取出 HTTP middleware 已注入的帶 request_id logger
+		// 再加上 chat_id 方便過濾特定使用者的訊息
 		var chatID int64
 		if u.Message != nil {
 			chatID = u.Message.Chat.ID
 		}
-		requestID := fmt.Sprintf("tg-%d-%d", chatID, c.Request.Context().Value("request_nano"))
-		reqLogger := h.logger.With(logger.String("request_id", requestID), logger.Int64("chat_id", chatID))
+		reqLogger := logger.FromContext(reqCtx, h.logger).With(logger.Int64("chat_id", chatID))
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -67,8 +70,7 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 			}
 		}()
 
-		ctx := context.Background()
-		if err := h.messageProcessor.ProcessUpdate(ctx, &u); err != nil {
+		if err := h.messageProcessor.ProcessUpdate(reqCtx, &u); err != nil {
 			reqLogger.Error("failed to process telegram update", logger.Error(err))
 		}
 	}(update)

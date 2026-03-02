@@ -2,6 +2,7 @@
 package logger
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -131,12 +132,31 @@ func (l *zapLogger) ZapLogger() *zap.Logger {
 	return l.logger
 }
 
-// ExtractZapLogger 從 Logger interface 中提取底層 *zap.Logger
+// ExtractZapLogger 從 Logger interface 中提取底層 *zap.Logger（若可用）
 func ExtractZapLogger(l Logger) (*zap.Logger, bool) {
 	if zl, ok := l.(*zapLogger); ok {
 		return zl.logger, true
 	}
 	return nil, false
+}
+
+// ============================================================
+// Context 工具函式：讓 logger 可透過 context.Context 傳遞
+// ============================================================
+
+type contextKey struct{}
+
+// WithLogger 將 logger 注入 context，回傳新的 context
+func WithLogger(ctx context.Context, l Logger) context.Context {
+	return context.WithValue(ctx, contextKey{}, l)
+}
+
+// FromContext 從 context 取出 logger；若找不到則回傳 fallback（避免 nil panic）
+func FromContext(ctx context.Context, fallback Logger) Logger {
+	if l, ok := ctx.Value(contextKey{}).(Logger); ok {
+		return l
+	}
+	return fallback
 }
 
 // NewLogger 建立新的 Logger 實例

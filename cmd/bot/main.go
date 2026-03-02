@@ -34,6 +34,7 @@ import (
 	linebot "github.com/tian841224/stock-bot/internal/interfaces/bot/line"
 	telegram "github.com/tian841224/stock-bot/internal/interfaces/bot/telegram"
 	healthHandler "github.com/tian841224/stock-bot/internal/interfaces/health"
+	"github.com/tian841224/stock-bot/internal/interfaces/middleware"
 )
 
 func main() {
@@ -296,6 +297,8 @@ func setupRouter(
 	} else {
 		router.Use(gin.Recovery())
 	}
+	// 為每個 HTTP request 產生唯一 request_id 並注入 context
+	router.Use(middleware.RequestID(log))
 
 	// 健康檢查端點
 	healthHandlerInstance := healthHandler.NewHealthHandler(healthUsecase, log)

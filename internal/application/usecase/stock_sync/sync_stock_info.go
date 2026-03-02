@@ -2,6 +2,7 @@ package stock_sync
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -42,26 +43,28 @@ func NewStockSyncUsecase(
 }
 
 func (s *stockSyncUsecase) SyncTaiwanStockInfo(ctx context.Context) error {
-	s.logger.Info("start syncing TW stock symbols")
+	syncID := fmt.Sprintf("tw-sync-%d", time.Now().UnixNano())
+	log := logger.FromContext(ctx, s.logger).With(logger.String("sync_id", syncID))
+	log.Info("start syncing TW stock symbols")
 	now := time.Now()
 
 	symbols, err := s.stockInfoProvider.GetTaiwanStockInfo(ctx)
 	if err != nil {
-		s.logger.Error("failed to get TW stock symbols", logger.Error(err))
+		log.Error("failed to get TW stock symbols", logger.Error(err))
 		s.updateSyncMetadata(ctx, "TW", &now, nil, 0, err.Error())
 		return err
 	}
 
-	s.logger.Info("fetched TW stock symbols", logger.Int("count", len(symbols)))
+	log.Info("fetched TW stock symbols", logger.Int("count", len(symbols)))
 
 	successCount, errorCount, err := s.asyncBatchUpsert(ctx, symbols)
 	if err != nil {
-		s.logger.Error("batch upsert TW stock symbols failed", logger.Error(err))
+		log.Error("batch upsert TW stock symbols failed", logger.Error(err))
 		s.updateSyncMetadata(ctx, "TW", &now, nil, successCount, err.Error())
 		return err
 	}
 
-	s.logger.Info("TW stock symbol sync completed",
+	log.Info("TW stock symbol sync completed",
 		logger.Int("success", successCount),
 		logger.Int("failed", errorCount),
 		logger.Int("total", len(symbols)))
@@ -72,26 +75,28 @@ func (s *stockSyncUsecase) SyncTaiwanStockInfo(ctx context.Context) error {
 }
 
 func (s *stockSyncUsecase) SyncUSStockInfo(ctx context.Context) error {
-	s.logger.Info("start syncing US stock symbols")
+	syncID := fmt.Sprintf("us-sync-%d", time.Now().UnixNano())
+	log := logger.FromContext(ctx, s.logger).With(logger.String("sync_id", syncID))
+	log.Info("start syncing US stock symbols")
 	now := time.Now()
 
 	symbols, err := s.stockInfoProvider.GetUSStockInfo(ctx)
 	if err != nil {
-		s.logger.Error("failed to get US stock symbols", logger.Error(err))
+		log.Error("failed to get US stock symbols", logger.Error(err))
 		s.updateSyncMetadata(ctx, "US", &now, nil, 0, err.Error())
 		return err
 	}
 
-	s.logger.Info("fetched US stock symbols", logger.Int("count", len(symbols)))
+	log.Info("fetched US stock symbols", logger.Int("count", len(symbols)))
 
 	successCount, errorCount, err := s.asyncBatchUpsert(ctx, symbols)
 	if err != nil {
-		s.logger.Error("batch upsert US stock symbols failed", logger.Error(err))
+		log.Error("batch upsert US stock symbols failed", logger.Error(err))
 		s.updateSyncMetadata(ctx, "US", &now, nil, successCount, err.Error())
 		return err
 	}
 
-	s.logger.Info("US stock symbol sync completed",
+	log.Info("US stock symbol sync completed",
 		logger.Int("success", successCount),
 		logger.Int("failed", errorCount),
 		logger.Int("total", len(symbols)))
@@ -102,23 +107,25 @@ func (s *stockSyncUsecase) SyncUSStockInfo(ctx context.Context) error {
 }
 
 func (s *stockSyncUsecase) SyncTaiwanStockTradingDate(ctx context.Context) error {
-	s.logger.Info("start syncing TW trade dates")
+	syncID := fmt.Sprintf("tw-date-sync-%d", time.Now().UnixNano())
+	log := logger.FromContext(ctx, s.logger).With(logger.String("sync_id", syncID))
+	log.Info("start syncing TW trade dates")
 
 	tradeDates, err := s.stockInfoProvider.GetTaiwanStockTradingDate(ctx)
 	if err != nil {
-		s.logger.Error("failed to get TW trade dates", logger.Error(err))
+		log.Error("failed to get TW trade dates", logger.Error(err))
 		return err
 	}
 
-	s.logger.Info("fetched TW trade dates", logger.Int("count", len(tradeDates)))
+	log.Info("fetched TW trade dates", logger.Int("count", len(tradeDates)))
 
 	err = s.tradeDateRepo.BatchCreateTradeDates(ctx, tradeDates)
 	if err != nil {
-		s.logger.Error("failed to batch create trade dates", logger.Error(err))
+		log.Error("failed to batch create trade dates", logger.Error(err))
 		return err
 	}
 
-	s.logger.Info("TW trade date sync completed",
+	log.Info("TW trade date sync completed",
 		logger.Int("total", len(tradeDates)))
 
 	return nil
