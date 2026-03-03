@@ -182,7 +182,10 @@ func NewLogger() (Logger, error) {
 		cfg.Level = zap.NewAtomicLevelAt(level)
 	}
 
-	zapLog, err := cfg.Build()
+	// 統一使用 RFC3339 UTC 格式，避免 Unix 秒數不易閱讀
+	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+
+	zapLog, err := cfg.Build(zap.AddCallerSkip(1))
 	if err != nil {
 		return nil, err
 	}

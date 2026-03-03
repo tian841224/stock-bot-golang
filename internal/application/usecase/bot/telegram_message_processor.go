@@ -45,7 +45,9 @@ func (p *TelegramMessageProcessor) ProcessUpdate(ctx context.Context, update *tg
 	chatID := update.Message.Chat.ID
 	messageText := update.Message.Text
 
-	p.logger.Info("received telegram message",
+	// 從 context 取出帶有 request_id 的 logger（由 Telegram handler 注入）
+	log := logger.FromContext(ctx, p.logger)
+	log.Info("received telegram message",
 		logger.Int64("chat_id", chatID),
 		logger.String("message", messageText))
 
@@ -57,7 +59,7 @@ func (p *TelegramMessageProcessor) ProcessUpdate(ctx context.Context, update *tg
 
 	// 路由到對應的命令處理器
 	if err := p.routeCommand(ctx, command, arg1, arg2, chatID); err != nil {
-		p.logger.Error("failed to handle command",
+		log.Error("failed to handle command",
 			logger.String("command", command),
 			logger.String("arg1", arg1),
 			logger.String("arg2", arg2),

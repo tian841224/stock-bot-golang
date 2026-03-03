@@ -45,13 +45,15 @@ func (p *LineMessageProcessor) ProcessTextMessage(ctx context.Context, event *li
 	replyToken := event.ReplyToken
 	messageText := message.Text
 
-	p.logger.Info("收到 LINE 訊息",
+	// 從 context 取出帶有 request_id 的 logger（由 LINE handler 注入）
+	log := logger.FromContext(ctx, p.logger)
+	log.Info("received LINE message",
 		logger.String("user_id", userID),
 		logger.String("message", messageText))
 
 	// 確保使用者存在
 	if err := p.ensureUser(ctx, userID); err != nil {
-		p.logger.Error("確保使用者存在失敗", logger.Error(err))
+		log.Error("failed to ensure user exists", logger.Error(err))
 	}
 
 	// 解析命令和參數
@@ -165,7 +167,7 @@ func (p *LineMessageProcessor) handleDailyMarket(ctx context.Context, replyToken
 // 輔助方法
 
 func (p *LineMessageProcessor) sendError(replyToken, message string) error {
-	p.logger.Warn("發送錯誤訊息", logger.String("message", message))
+	p.logger.Info("sending error reply to user", logger.String("reply", message))
 	return p.lineBotClient.ReplyMessage(replyToken, message)
 }
 
