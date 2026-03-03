@@ -20,10 +20,12 @@ func NewHealthHandler(healthUsecase health.HealthCheckUsecase, log logger.Logger
 
 func (h *HealthHandler) HealthCheck(c *gin.Context) {
 	ctx := c.Request.Context()
+	// 從 context 取出帶有 request_id 的 logger（由 RequestID middleware 注入）
+	reqLogger := logger.FromContext(ctx, h.logger)
 
 	status, err := h.healthUsecase.GetHealthStatus(ctx)
 	if err != nil {
-		h.logger.Error("health check failed", logger.Error(err))
+		reqLogger.Error("health check failed", logger.Error(err))
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}

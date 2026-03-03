@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -97,26 +98,30 @@ func runBackgroundSync(ctx context.Context, stockSyncUsecase stock_sync.StockSyn
 		appLogger.Info("background sync task fully stopped")
 	}()
 
-	appLogger.Info("running initial sync...")
-	if err := stockSyncUsecase.SyncTaiwanStockInfo(ctx); err != nil {
-		appLogger.Error("TW stock sync failed", logger.Error(err))
-	}
-	appLogger.Info("TW stock sync completed")
+	// 初始執行：產生唯一 job_id，讓整次同步鏈路完整串聯
+	initJobID := fmt.Sprintf("sync-init-%d", time.Now().UnixNano())
+	initCtx := logger.WithLogger(ctx, appLogger.With(logger.String("job_id", initJobID)))
 
-	if err := stockSyncUsecase.SyncUSStockInfo(ctx); err != nil {
-		appLogger.Error("US stock sync failed", logger.Error(err))
+	appLogger.Info("running initial sync...", logger.String("job_id", initJobID))
+	if err := stockSyncUsecase.SyncTaiwanStockInfo(initCtx); err != nil {
+		appLogger.Error("TW stock sync failed", logger.String("job_id", initJobID), logger.Error(err))
 	}
-	appLogger.Info("US stock sync completed")
+	appLogger.Info("TW stock sync completed", logger.String("job_id", initJobID))
 
-	if stats, err := stockSyncUsecase.GetSyncStats(ctx); err == nil {
-		appLogger.Info("initial sync stats", logger.Any("stats", stats))
+	if err := stockSyncUsecase.SyncUSStockInfo(initCtx); err != nil {
+		appLogger.Error("US stock sync failed", logger.String("job_id", initJobID), logger.Error(err))
+	}
+	appLogger.Info("US stock sync completed", logger.String("job_id", initJobID))
+
+	if stats, err := stockSyncUsecase.GetSyncStats(initCtx); err == nil {
+		appLogger.Info("initial sync stats", logger.String("job_id", initJobID), logger.Any("stats", stats))
 	}
 
-	err := stockSyncUsecase.SyncTaiwanStockTradingDate(ctx)
+	err := stockSyncUsecase.SyncTaiwanStockTradingDate(initCtx)
 	if err != nil {
-		appLogger.Error("failed to sync TW trade dates", logger.Error(err))
+		appLogger.Error("failed to sync TW trade dates", logger.String("job_id", initJobID), logger.Error(err))
 	}
-	appLogger.Info("TW trade date sync completed")
+	appLogger.Info("TW trade date sync completed", logger.String("job_id", initJobID))
 
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
@@ -127,19 +132,23 @@ func runBackgroundSync(ctx context.Context, stockSyncUsecase stock_sync.StockSyn
 			appLogger.Info("received stop signal, stopping background sync...")
 			return
 		case <-ticker.C:
-			appLogger.Info("running scheduled sync...")
-			if err := stockSyncUsecase.SyncTaiwanStockInfo(ctx); err != nil {
-				appLogger.Error("TW stock sync failed", logger.Error(err))
-			}
-			appLogger.Info("TW stock sync completed")
+			// 每次定時觸發產生獨立 job_id，方便追蹤單次排程的完整鏈路
+			jobID := fmt.Sprintf("sync-%d", time.Now().UnixNano())
+			jobCtx := logger.WithLogger(ctx, appLogger.With(logger.String("job_id", jobID)))
 
-			if err := stockSyncUsecase.SyncUSStockInfo(ctx); err != nil {
-				appLogger.Error("US stock sync failed", logger.Error(err))
+			appLogger.Info("running scheduled sync...", logger.String("job_id", jobID))
+			if err := stockSyncUsecase.SyncTaiwanStockInfo(jobCtx); err != nil {
+				appLogger.Error("TW stock sync failed", logger.String("job_id", jobID), logger.Error(err))
 			}
-			appLogger.Info("US stock sync completed")
+			appLogger.Info("TW stock sync completed", logger.String("job_id", jobID))
 
-			if stats, err := stockSyncUsecase.GetSyncStats(ctx); err == nil {
-				appLogger.Info("scheduled sync stats", logger.Any("stats", stats))
+			if err := stockSyncUsecase.SyncUSStockInfo(jobCtx); err != nil {
+				appLogger.Error("US stock sync failed", logger.String("job_id", jobID), logger.Error(err))
+			}
+			appLogger.Info("US stock sync completed", logger.String("job_id", jobID))
+
+			if stats, err := stockSyncUsecase.GetSyncStats(jobCtx); err == nil {
+				appLogger.Info("scheduled sync stats", logger.String("job_id", jobID), logger.Any("stats", stats))
 			}
 		}
 	}
