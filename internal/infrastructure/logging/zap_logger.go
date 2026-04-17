@@ -159,6 +159,12 @@ func FromContext(ctx context.Context, fallback Logger) Logger {
 	return fallback
 }
 
+// DetachContext 建立一個不會隨原始 request 結束而取消的新 context，
+// 但保留原本注入的 logger。
+func DetachContext(ctx context.Context, fallback Logger) context.Context {
+	return WithLogger(context.Background(), FromContext(ctx, fallback))
+}
+
 // NewLogger 建立新的 Logger 實例
 func NewLogger() (Logger, error) {
 	mode := os.Getenv("GIN_MODE")

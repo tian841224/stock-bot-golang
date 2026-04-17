@@ -1,9 +1,10 @@
 package tgbot
 
 import (
+	"context"
 	"net/http"
+	"time"
 
-	"github.com/tian841224/stock-bot/internal/application/usecase/bot"
 	"github.com/tian841224/stock-bot/internal/infrastructure/config"
 	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 
@@ -11,15 +12,21 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+const asyncProcessingTimeout = 30 * time.Second
+
+type telegramUpdateProcessor interface {
+	ProcessUpdate(ctx context.Context, update *tgbotapi.Update) error
+}
+
 type TgHandler struct {
 	cfg              *config.Config
-	messageProcessor *bot.TelegramMessageProcessor
+	messageProcessor telegramUpdateProcessor
 	logger           logger.Logger
 }
 
 func NewTgHandler(
 	cfg *config.Config,
-	messageProcessor *bot.TelegramMessageProcessor,
+	messageProcessor telegramUpdateProcessor,
 	log logger.Logger,
 ) *TgHandler {
 	return &TgHandler{
@@ -56,13 +63,17 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 	reqCtx := c.Request.Context()
 
 	go func(u tgbotapi.Update) {
+		processCtx, cancel := context.WithTimeout(logger.DetachContext(reqCtx, h.logger), asyncProcessingTimeout)
+		defer cancel()
+
 		// 取出 HTTP middleware 已注入的帶 request_id logger
 		// 再加上 chat_id 方便過濾特定使用者的訊息
 		var chatID int64
 		if u.Message != nil {
 			chatID = u.Message.Chat.ID
 		}
-		reqLogger := logger.FromContext(reqCtx, h.logger).With(logger.Int64("chat_id", chatID))
+		reqLogger := logger.FromContext(processCtx, h.logger).With(logger.Int64("chat_id", chatID))
+		processCtx = logger.WithLogger(processCtx, reqLogger)
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -70,7 +81,7 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 			}
 		}()
 
-		if err := h.messageProcessor.ProcessUpdate(reqCtx, &u); err != nil {
+		if err := h.messageProcessor.ProcessUpdate(processCtx, &u); err != nil {
 			reqLogger.Error("failed to process telegram update", logger.Error(err))
 		}
 	}(update)
