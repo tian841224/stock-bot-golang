@@ -52,7 +52,8 @@ func (u *sendNotificationUsecase) SendStockPriceNotification(ctx context.Context
 	for _, subscriptionSymbol := range subscriptionSymbols {
 		stockPrice, err := u.marketDataUsecase.GetStockPrice(ctx, subscriptionSymbol.StockSymbol.Symbol, nil)
 		if err != nil {
-			u.logger.Error("SendStockPriceNotification GetStockPrice Error",
+			u.logger.Error("get stock price failed",
+				logger.String("op", "SendStockPriceNotification"),
 				logger.String("symbol", subscriptionSymbol.StockSymbol.Symbol),
 				logger.Error(err),
 			)
@@ -60,18 +61,12 @@ func (u *sendNotificationUsecase) SendStockPriceNotification(ctx context.Context
 		}
 
 		data := u.formatterPort.FormatStockPrice(stockPrice, valueobject.UserTypeTelegram)
-		if err != nil {
-			u.logger.Error("SendStockPriceNotification FormatStockPrice Error",
-				logger.String("symbol", subscriptionSymbol.StockSymbol.Symbol),
-				logger.Error(err),
-			)
-			continue
-		}
 
 		accountID, err := strconv.ParseInt(subscriptionSymbol.User.AccountID, 10, 64)
 		if err != nil {
-			u.logger.Error("SendStockPriceNotification ParseInt Error",
-				logger.String("accountID", subscriptionSymbol.User.AccountID),
+			u.logger.Error("parse account_id failed",
+				logger.String("op", "SendStockPriceNotification"),
+				logger.String("account_id", subscriptionSymbol.User.AccountID),
 				logger.Error(err),
 			)
 			continue
@@ -79,9 +74,9 @@ func (u *sendNotificationUsecase) SendStockPriceNotification(ctx context.Context
 
 		err = u.client.SendMessage(accountID, data)
 		if err != nil {
-			u.logger.Error("SendStockPriceNotification SendMessage Error",
-				logger.Int64("accountID", accountID),
-				logger.String("data", data),
+			u.logger.Error("send message failed",
+				logger.String("op", "SendStockPriceNotification"),
+				logger.Int64("account_id", accountID),
 				logger.Error(err),
 			)
 			continue
@@ -100,7 +95,8 @@ func (u *sendNotificationUsecase) SendStockNewsNotification(ctx context.Context)
 	for _, subscriptionSymbol := range subscriptionSymbols {
 		stockNews, err := u.marketDataUsecase.GetStockNews(ctx, subscriptionSymbol.StockSymbol.Symbol, 5)
 		if err != nil {
-			u.logger.Error("SendStockNewsNotification GetStockNews Error",
+			u.logger.Error("get stock news failed",
+				logger.String("op", "SendStockNewsNotification"),
 				logger.String("symbol", subscriptionSymbol.StockSymbol.Symbol),
 				logger.Error(err),
 			)
@@ -108,18 +104,12 @@ func (u *sendNotificationUsecase) SendStockNewsNotification(ctx context.Context)
 		}
 
 		data := u.formatterPort.FormatTelegramNewsMessage(*stockNews, subscriptionSymbol.StockSymbol.Symbol, subscriptionSymbol.StockSymbol.Name)
-		if err != nil {
-			u.logger.Error("SendStockNewsNotification FormatTelegramNewsMessage Error",
-				logger.String("symbol", subscriptionSymbol.StockSymbol.Symbol),
-				logger.Error(err),
-			)
-			continue
-		}
 
 		accountID, err := strconv.ParseInt(subscriptionSymbol.User.AccountID, 10, 64)
 		if err != nil {
-			u.logger.Error("SendStockNewsNotification ParseInt Error",
-				logger.String("accountID", subscriptionSymbol.User.AccountID),
+			u.logger.Error("parse account_id failed",
+				logger.String("op", "SendStockNewsNotification"),
+				logger.String("account_id", subscriptionSymbol.User.AccountID),
 				logger.Error(err),
 			)
 			continue
@@ -127,9 +117,9 @@ func (u *sendNotificationUsecase) SendStockNewsNotification(ctx context.Context)
 
 		err = u.client.SendMessageWithKeyboard(accountID, data.Text, data.InlineKeyboardMarkup)
 		if err != nil {
-			u.logger.Error("SendStockNewsNotification SendMessageWithKeyboard Error",
-				logger.Int64("accountID", accountID),
-				logger.String("data", data.Text),
+			u.logger.Error("send message failed",
+				logger.String("op", "SendStockNewsNotification"),
+				logger.Int64("account_id", accountID),
 				logger.Error(err),
 			)
 			continue
@@ -148,24 +138,20 @@ func (u *sendNotificationUsecase) SendMarketInfoNotification(ctx context.Context
 	for _, subscriptionSymbol := range subscriptionSymbols {
 		stockPrice, err := u.marketDataUsecase.GetDailyMarketInfo(ctx, 1)
 		if err != nil {
-			u.logger.Error("SendMarketInfoNotification GetDailyMarketInfo Error",
+			u.logger.Error("get daily market info failed",
+				logger.String("op", "SendMarketInfoNotification"),
 				logger.Error(err),
 			)
 			continue
 		}
 
 		data := u.formatterPort.FormatDailyMarketInfo(stockPrice, valueobject.UserTypeTelegram)
-		if err != nil {
-			u.logger.Error("SendMarketInfoNotification FormatDailyMarketInfo Error",
-				logger.Error(err),
-			)
-			continue
-		}
 
 		accountID, err := strconv.ParseInt(subscriptionSymbol.User.AccountID, 10, 64)
 		if err != nil {
-			u.logger.Error("SendMarketInfoNotification ParseInt Error",
-				logger.String("accountID", subscriptionSymbol.User.AccountID),
+			u.logger.Error("parse account_id failed",
+				logger.String("op", "SendMarketInfoNotification"),
+				logger.String("account_id", subscriptionSymbol.User.AccountID),
 				logger.Error(err),
 			)
 			continue
@@ -173,9 +159,9 @@ func (u *sendNotificationUsecase) SendMarketInfoNotification(ctx context.Context
 
 		err = u.client.SendMessage(accountID, data)
 		if err != nil {
-			u.logger.Error("SendMarketInfoNotification SendMessage Error",
-				logger.Int64("accountID", accountID),
-				logger.String("data", data),
+			u.logger.Error("send message failed",
+				logger.String("op", "SendMarketInfoNotification"),
+				logger.Int64("account_id", accountID),
 				logger.Error(err),
 			)
 			continue
@@ -194,24 +180,20 @@ func (u *sendNotificationUsecase) SendTopVolumeNotification(ctx context.Context)
 	for _, subscriptionSymbol := range subscriptionSymbols {
 		topVolumeStocks, err := u.marketDataUsecase.GetTopVolumeStock(ctx)
 		if err != nil {
-			u.logger.Error("SendTopVolumeNotification GetTopVolumeStock Error",
+			u.logger.Error("get top volume stocks failed",
+				logger.String("op", "SendTopVolumeNotification"),
 				logger.Error(err),
 			)
 			continue
 		}
 
 		data := u.formatterPort.FormatTopVolumeStock(topVolumeStocks, valueobject.UserTypeTelegram)
-		if err != nil {
-			u.logger.Error("SendTopVolumeNotification FormatTopVolumeStock Error",
-				logger.Error(err),
-			)
-			continue
-		}
 
 		accountID, err := strconv.ParseInt(subscriptionSymbol.User.AccountID, 10, 64)
 		if err != nil {
-			u.logger.Error("SendTopVolumeNotification ParseInt Error",
-				logger.String("accountID", subscriptionSymbol.User.AccountID),
+			u.logger.Error("parse account_id failed",
+				logger.String("op", "SendTopVolumeNotification"),
+				logger.String("account_id", subscriptionSymbol.User.AccountID),
 				logger.Error(err),
 			)
 			continue
@@ -219,9 +201,9 @@ func (u *sendNotificationUsecase) SendTopVolumeNotification(ctx context.Context)
 
 		err = u.client.SendMessage(accountID, data)
 		if err != nil {
-			u.logger.Error("SendTopVolumeNotification SendMessage Error",
-				logger.Int64("accountID", accountID),
-				logger.String("data", data),
+			u.logger.Error("send message failed",
+				logger.String("op", "SendTopVolumeNotification"),
+				logger.Int64("account_id", accountID),
 				logger.Error(err),
 			)
 			continue

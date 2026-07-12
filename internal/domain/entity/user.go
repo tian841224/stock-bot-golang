@@ -2,6 +2,7 @@ package entity
 
 import (
 	"github.com/tian841224/stock-bot/internal/domain/valueobject"
+	"time"
 
 	domainerror "github.com/tian841224/stock-bot/internal/domain/error"
 )
@@ -10,8 +11,9 @@ import (
 type User struct {
 	ID        uint
 	AccountID string
-	UserType  valueobject.UserType
-	Status    bool
+	UserType       valueobject.UserType
+	Status         bool
+	LastActivityAt time.Time
 }
 
 // Validate 驗證使用者資料的合法性

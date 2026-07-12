@@ -2,6 +2,7 @@
 package logger
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -22,6 +23,8 @@ type Logger interface {
 	Panic(msg string, fields ...Field)
 	Fatal(msg string, fields ...Field)
 	Sync() error
+	// With 回傳一個帶有預設欄位的子 Logger，用於傳播 request_id 等 context 資訊
+	With(fields ...Field) Logger
 }
 
 // 便利函數：建立各種類型的日誌欄位
@@ -119,6 +122,52 @@ func (l *zapLogger) Sync() error {
 	return l.logger.Sync()
 }
 
+// With 回傳一個帶有預設欄位的子 Logger
+func (l *zapLogger) With(fields ...Field) Logger {
+	return &zapLogger{logger: l.logger.With(convertFields(fields...)...)}
+}
+
+// ZapLogger 回傳底層的 *zap.Logger，僅供 infrastructure 層使用
+func (l *zapLogger) ZapLogger() *zap.Logger {
+	return l.logger
+}
+
+// ExtractZapLogger 從 Logger interface 中提取底層 *zap.Logger（若可用）。
+// 底層 logger 是以 AddCallerSkip(1) 建立（用於補償 zapLogger 包裝方法多出的一層呼叫堆疊）；
+// 這裡取出的 logger 會直接被第三方套件（如 ginzap）呼叫、不再經過該包裝層，
+// 因此需以 AddCallerSkip(-1) 抵銷，避免 caller 欄位多算一層而指錯位置。
+func ExtractZapLogger(l Logger) (*zap.Logger, bool) {
+	if zl, ok := l.(*zapLogger); ok {
+		return zl.logger.WithOptions(zap.AddCallerSkip(-1)), true
+	}
+	return nil, false
+}
+
+// ============================================================
+// Context 工具函式：讓 logger 可透過 context.Context 傳遞
+// ============================================================
+
+type contextKey struct{}
+
+// WithLogger 將 logger 注入 context，回傳新的 context
+func WithLogger(ctx context.Context, l Logger) context.Context {
+	return context.WithValue(ctx, contextKey{}, l)
+}
+
+// FromContext 從 context 取出 logger；若找不到則回傳 fallback（避免 nil panic）
+func FromContext(ctx context.Context, fallback Logger) Logger {
+	if l, ok := ctx.Value(contextKey{}).(Logger); ok {
+		return l
+	}
+	return fallback
+}
+
+// DetachContext 建立一個不會隨原始 request 結束而取消的新 context，
+// 但保留原本注入的 logger。
+func DetachContext(ctx context.Context, fallback Logger) context.Context {
+	return WithLogger(context.Background(), FromContext(ctx, fallback))
+}
+
 // NewLogger 建立新的 Logger 實例
 func NewLogger() (Logger, error) {
 	mode := os.Getenv("GIN_MODE")
@@ -142,7 +191,10 @@ func NewLogger() (Logger, error) {
 		cfg.Level = zap.NewAtomicLevelAt(level)
 	}
 
-	zapLog, err := cfg.Build()
+	// 統一使用 RFC3339 UTC 格式，避免 Unix 秒數不易閱讀
+	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+
+	zapLog, err := cfg.Build(zap.AddCallerSkip(1))
 	if err != nil {
 		return nil, err
 	}

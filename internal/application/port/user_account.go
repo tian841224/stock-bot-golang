@@ -10,4 +10,5 @@ import (
 // UserAccountPort 提供 bot usecase 查詢或建立使用者的能力。
 type UserAccountPort interface {
 	GetOrCreate(ctx context.Context, accountID string, userType valueobject.UserType) (*entity.User, error)
+	UpdateActivity(ctx context.Context, userID uint) error
 }

@@ -33,8 +33,9 @@ func (r *postgresUserRepository) toEntity(model *models.User) *entity.User {
 	return &entity.User{
 		ID:        model.ID,
 		AccountID: model.AccountID,
-		UserType:  model.UserType,
-		Status:    model.Status,
+		UserType:       model.UserType,
+		Status:         model.Status,
+		LastActivityAt: model.LastActivityAt,
 	}
 }
 
@@ -43,9 +44,10 @@ func (r *postgresUserRepository) toModel(entity *entity.User) *models.User {
 		Model: models.Model{
 			ID: entity.ID,
 		},
-		AccountID: entity.AccountID,
-		UserType:  entity.UserType,
-		Status:    entity.Status,
+		AccountID:      entity.AccountID,
+		UserType:       entity.UserType,
+		Status:         entity.Status,
+		LastActivityAt: entity.LastActivityAt,
 	}
 }
 
@@ -170,3 +172,8 @@ func (r *postgresUserRepository) Delete(ctx context.Context, id uint) error {
 	r.logger.Info("User deleted successfully", logger.Any("id", id))
 	return nil
 }
+
+func (r *postgresUserRepository) UpdateActivity(ctx context.Context, userID uint) error {
+	return r.db.WithContext(ctx).Model(&models.User{}).Where("id = ?", userID).Update("last_activity_at", gorm.Expr("NOW()")).Error
+}
+

@@ -8,19 +8,22 @@ import (
 	"time"
 
 	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/cnyes/dto"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 )
 
 // CnyesAPI 鉅亨網 API 客戶端
 type CnyesAPI struct {
 	baseURL string
 	client  *http.Client
+	logger  logger.Logger
 }
 
 // NewCnyesAPI 建立新的鉅亨網 API 客戶端
-func NewCnyesAPI() *CnyesAPI {
+func NewCnyesAPI(log logger.Logger) *CnyesAPI {
 	return &CnyesAPI{
 		baseURL: "https://ws.api.cnyes.com/ws/api/v1/quote/quotes",
 		client:  &http.Client{Timeout: 10 * time.Second},
+		logger:  log,
 	}
 }
 
@@ -37,6 +40,8 @@ func (c *CnyesAPI) GetRevenue(symbol string, months int) (response dto.CnyesReve
 }
 
 func getResponse[T any](c *CnyesAPI, url string) (response T, err error) {
+	c.logger.Debug("cnyes API request", logger.String("url", url))
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return response, err
@@ -45,18 +50,22 @@ func getResponse[T any](c *CnyesAPI, url string) (response T, err error) {
 	// 發送請求
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return response, fmt.Errorf("無法連接到鉅亨網 API: %v", err)
+		c.logger.Error("cnyes API request failed", logger.String("url", url), logger.Error(err))
+		return response, fmt.Errorf("failed to connect to cnyes API: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// 檢查狀態碼
 	if resp.StatusCode != http.StatusOK {
-		return response, fmt.Errorf("鉅亨網 API 回應錯誤，狀態碼: %d", resp.StatusCode)
+		c.logger.Error("cnyes API returned non-200",
+			logger.String("url", url),
+			logger.Int("status_code", resp.StatusCode))
+		return response, fmt.Errorf("cnyes API error, status: %d", resp.StatusCode)
 	}
 
 	// 解析 JSON 回應
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return response, fmt.Errorf("無法解析回應 JSON: %v", err)
+		return response, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 
 	return response, nil

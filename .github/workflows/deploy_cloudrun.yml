@@ -1,0 +1,116 @@
+name: Deploy Stock Bot to Cloud Run
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-east1
+  GAR_LOCATION: asia-east1-docker.pkg.dev
+  REPOSITORY: stock-bot
+
+jobs:
+  Deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout 程式碼
+        uses: actions/checkout@v4
+
+      - name: Google 驗證
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: 設定 Docker 以使用 Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GAR_LOCATION }}
+
+      - name: 建置並推送 Bot 映像檔
+        run: |
+          IMAGE_NAME="${{ env.GAR_LOCATION }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/bot:${{ github.sha }}"
+          docker build -t $IMAGE_NAME -f Dockerfile .
+          docker push $IMAGE_NAME
+          echo "BOT_IMAGE=$IMAGE_NAME" >> $GITHUB_ENV
+
+      - name: 建置並推送 Sync 映像檔
+        run: |
+          IMAGE_NAME="${{ env.GAR_LOCATION }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/sync:${{ github.sha }}"
+          docker build -t $IMAGE_NAME -f Dockerfile.sync .
+          docker push $IMAGE_NAME
+          echo "SYNC_IMAGE=$IMAGE_NAME" >> $GITHUB_ENV
+
+      - name: 建置並推送 Scheduler 映像檔
+        run: |
+          IMAGE_NAME="${{ env.GAR_LOCATION }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/scheduler:${{ github.sha }}"
+          docker build -t $IMAGE_NAME -f Dockerfile.scheduler .
+          docker push $IMAGE_NAME
+          echo "SCHEDULER_IMAGE=$IMAGE_NAME" >> $GITHUB_ENV
+
+      - name: 部署 Bot 到 Cloud Run
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: 'stock-bot'
+          image: ${{ env.BOT_IMAGE }}
+          region: ${{ env.REGION }}
+          env_vars: |
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            CHANNEL_ACCESS_TOKEN=${{ secrets.CHANNEL_ACCESS_TOKEN }}
+            CHANNEL_SECRET=${{ secrets.CHANNEL_SECRET }}
+            TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+            FINMIND_TOKEN=${{ secrets.FINMIND_TOKEN }}
+            FUGLE_API_KEY=${{ secrets.FUGLE_API_KEY }}
+            IMGBB_API_KEY=${{ secrets.IMGBB_API_KEY }}
+            TZ=Asia/Taipei
+            GIN_MODE=release
+          secrets: |
+            DB_PASSWORD=DB_PASSWORD:latest
+          # 配合 Cloud SQL 使用
+          # add_cloudsql_instances: ${{ secrets.GCP_PROJECT_ID }}:${{ env.REGION }}:stock-bot-db
+
+      - name: 部署 Sync 到 Cloud Run
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: 'stock-bot-sync'
+          image: ${{ env.SYNC_IMAGE }}
+          region: ${{ env.REGION }}
+          env_vars: |
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            FINMIND_TOKEN=${{ secrets.FINMIND_TOKEN }}
+            TZ=Asia/Taipei
+            GIN_MODE=release
+          secrets: |
+            DB_PASSWORD=DB_PASSWORD:latest
+
+      - name: 部署 Scheduler 到 Cloud Run
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: 'stock-bot-scheduler'
+          image: ${{ env.SCHEDULER_IMAGE }}
+          region: ${{ env.REGION }}
+          env_vars: |
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+            FINMIND_TOKEN=${{ secrets.FINMIND_TOKEN }}
+            FUGLE_API_KEY=${{ secrets.FUGLE_API_KEY }}
+            TZ=Asia/Taipei
+            GIN_MODE=release
+          secrets: |
+            DB_PASSWORD=DB_PASSWORD:latest

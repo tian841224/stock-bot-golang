@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -42,11 +43,11 @@ func main() {
 		log.Fatalf("初始化 Logger 失敗: %v", err)
 	}
 
-	appLogger.Info("=== 通知服務啟動中 ===")
+	appLogger.Info("=== notification service starting ===")
 
 	db := database.NewDatabase()
 	if err := db.Init(cfg); err != nil {
-		appLogger.Fatal("初始化資料庫失敗", logger.Error(err))
+		appLogger.Fatal("failed to init database", logger.Error(err))
 	}
 	defer db.Close()
 
@@ -57,13 +58,13 @@ func main() {
 	// ============================================================
 	tgClient, err := tgbotInfra.NewBot(*cfg, appLogger)
 	if err != nil {
-		appLogger.Fatal("建立 Telegram Bot 客戶端失敗", logger.Error(err))
+		appLogger.Fatal("failed to create Telegram Bot client", logger.Error(err))
 	}
 
-	fugleAPI := fugle.NewFugleAPI(*cfg)
-	twseAPI := twse.NewTwseAPI()
-	cnyesAPI := cnyes.NewCnyesAPI()
-	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg)
+	fugleAPI := fugle.NewFugleAPI(*cfg, appLogger)
+	twseAPI := twse.NewTwseAPI(appLogger)
+	cnyesAPI := cnyes.NewCnyesAPI(appLogger)
+	finmindAPI := finmindtrade.NewFinmindTradeAPI(*cfg, appLogger)
 
 	// ============================================================
 	// Repository
@@ -127,7 +128,7 @@ func main() {
 	)
 
 	scheduleHandlerUsecase := notificationUseCase.NewScheduleHandlerUsecase(sendNotificationUsecase, appLogger)
-	appLogger.Info("所有服務初始化完成")
+	appLogger.Info("all services initialized")
 
 	// ============================================================
 	// 啟動服務
@@ -138,42 +139,48 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// 啟動健康檢查 HTTP 服務器
+	// Start health check HTTP server
 	go func() {
 		router := gin.Default()
 		healthHandlerInstance := healthHandler.NewHealthHandler(healthUsecaseInstance, appLogger)
 		router.GET("/health", healthHandlerInstance.HealthCheck)
 
-		appLogger.Info("健康檢查服務器啟動，監聽端口: 8081")
-		if err := router.Run(":8081"); err != nil {
-			appLogger.Error("健康檢查服務器啟動失敗", logger.Error(err))
+		port := cfg.PORT
+		if port == 0 {
+			port = 8081
+		}
+		appLogger.Info("health check server started", logger.Int("port", port))
+		if err := router.Run(fmt.Sprintf(":%d", port)); err != nil {
+			appLogger.Error("health check server start failed", logger.Error(err))
 		}
 	}()
 
-	// 啟動排程通知任務
+	// Start scheduled notification task
 	go runScheduledNotifications(ctx, scheduleHandlerUsecase, appLogger)
 
 	<-quit
-	appLogger.Info("收到關閉信號，正在優雅關閉...")
+	appLogger.Info("received shutdown signal, shutting down gracefully...")
 	cancel()
-	appLogger.Info("=== 通知服務已關閉 ===")
+	appLogger.Info("=== notification service stopped ===")
 }
 
-func runScheduledNotifications(ctx context.Context, scheduler notificationUseCase.ScheduleHandlerUsecase, log logger.Logger) {
-	log.Info("排程通知服務已啟動")
+func runScheduledNotifications(ctx context.Context, sched notificationUseCase.ScheduleHandlerUsecase, log logger.Logger) {
+	log.Info("scheduled notification service started")
 
-	// 啟動時立刻執行一次
-	log.Info("正在執行啟動時的通知任務...")
-	if err := scheduler.RunScheduledTasks(ctx); err != nil {
-		log.Error("啟動時通知任務執行失敗", logger.Error(err))
+	// 啟動時立刻執行一次（帶獨立 job_id）
+	log.Info("running initial notification tasks...")
+	initJobID := fmt.Sprintf("notify-init-%d", time.Now().UnixNano())
+	initCtx := logger.WithLogger(ctx, log.With(logger.String("job_id", initJobID)))
+	if err := sched.RunScheduledTasks(initCtx); err != nil {
+		log.Error("initial notification task failed", logger.String("job_id", initJobID), logger.Error(err))
 	} else {
-		log.Info("啟動時通知任務執行完成")
+		log.Info("initial notification task completed", logger.String("job_id", initJobID))
 	}
 
 	// 設定每天下午三點 (台北時間) 執行
 	loc, err := time.LoadLocation("Asia/Taipei")
 	if err != nil {
-		log.Error("無法載入 Asia/Taipei 時區，將使用 Local 時區", logger.Error(err))
+		log.Error("failed to load Asia/Taipei timezone, using local timezone", logger.Error(err))
 		loc = time.Local
 	}
 
@@ -186,18 +193,23 @@ func runScheduledNotifications(ctx context.Context, scheduler notificationUseCas
 		}
 
 		duration := nextRun.Sub(now)
-		log.Info("下次排程任務將在 " + duration.String() + " 後執行 (" + nextRun.Format("2006-01-02 15:04:05") + ")")
+		log.Info("next scheduled task",
+			logger.String("wait", duration.String()),
+			logger.Time("next_run_at", nextRun))
 
 		select {
 		case <-ctx.Done():
-			log.Info("排程通知服務已停止")
+			log.Info("scheduled notification task stopping")
 			return
 		case <-time.After(duration):
-			log.Info("執行下午三點的排程通知任務...")
-			if err := scheduler.RunScheduledTasks(ctx); err != nil {
-				log.Error("排程通知任務執行失敗", logger.Error(err))
+			// 每次觸發產生獨立 job_id，方便追蹤單次排程的完整鏈路
+			jobID := fmt.Sprintf("notify-%d", time.Now().UnixNano())
+			jobCtx := logger.WithLogger(ctx, log.With(logger.String("job_id", jobID)))
+			log.Info("running scheduled notification task (15:00 Taipei)...", logger.String("job_id", jobID))
+			if err := sched.RunScheduledTasks(jobCtx); err != nil {
+				log.Error("scheduled notification task failed", logger.String("job_id", jobID), logger.Error(err))
 			} else {
-				log.Info("排程通知任務執行完成")
+				log.Info("scheduled notification task completed", logger.String("job_id", jobID))
 			}
 		}
 	}

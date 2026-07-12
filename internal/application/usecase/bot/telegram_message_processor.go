@@ -3,7 +3,6 @@ package bot
 import (
 	"context"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/tian841224/stock-bot/internal/application/port"
@@ -19,6 +18,7 @@ type TelegramMessageProcessor struct {
 	tgCommandUsecase TelegramCommandUsecase
 	userAccountPort  port.UserAccountPort
 	tgClient         *tgbotapi.TgBotClient
+	systemStatsRepo  port.SystemStatisticsRepository
 	logger           logger.Logger
 }
 
@@ -26,12 +26,14 @@ func NewTelegramMessageProcessor(
 	tgCommandUsecase TelegramCommandUsecase,
 	userAccountPort port.UserAccountPort,
 	tgClient *tgbotapi.TgBotClient,
+	systemStatsRepo port.SystemStatisticsRepository,
 	log logger.Logger,
 ) *TelegramMessageProcessor {
 	return &TelegramMessageProcessor{
 		tgCommandUsecase: tgCommandUsecase,
 		userAccountPort:  userAccountPort,
 		tgClient:         tgClient,
+		systemStatsRepo:  systemStatsRepo,
 		logger:           log,
 	}
 }
@@ -45,19 +47,24 @@ func (p *TelegramMessageProcessor) ProcessUpdate(ctx context.Context, update *tg
 	chatID := update.Message.Chat.ID
 	messageText := update.Message.Text
 
-	p.logger.Info("收到 Telegram 訊息",
+	// 從 context 取出帶有 request_id 的 logger（由 Telegram handler 注入）
+	log := logger.FromContext(ctx, p.logger)
+	log.Info("received telegram message",
 		logger.Int64("chat_id", chatID),
 		logger.String("message", messageText))
 
+	// 紀錄累計人次、確保使用者存在並更新活躍時間
+	trackUserActivity(ctx, p.systemStatsRepo, p.userAccountPort, strconv.FormatInt(chatID, 10), valueobject.UserTypeTelegram, log)
+
 	// 解析命令和參數
-	command, arg1, arg2 := p.parseMessageArgs(messageText)
+	command, arg1, arg2 := parseMessageArgs(messageText)
 	if command == "" {
 		return nil
 	}
 
 	// 路由到對應的命令處理器
 	if err := p.routeCommand(ctx, command, arg1, arg2, chatID); err != nil {
-		p.logger.Error("處理命令失敗",
+		log.Error("failed to handle command",
 			logger.String("command", command),
 			logger.String("arg1", arg1),
 			logger.String("arg2", arg2),
@@ -134,7 +141,7 @@ func (p *TelegramMessageProcessor) handleStockPrice(ctx context.Context, chatID 
 
 	var datePtr *time.Time
 	if rawDate != "" {
-		parsed, err := p.parseDate(rawDate)
+		parsed, err := parseDate(rawDate)
 		if err != nil {
 			return p.sendError(chatID, "日期格式錯誤，請使用 YYYY-MM-DD 格式\n例如：2025-12-09")
 		}
@@ -207,28 +214,8 @@ func (p *TelegramMessageProcessor) handleUnsubscribedItems(ctx context.Context, 
 // 輔助方法
 
 func (p *TelegramMessageProcessor) sendError(chatID int64, message string) error {
-	p.logger.Warn("發送錯誤訊息",
+	p.logger.Info("sending error reply to user",
 		logger.Int64("chat_id", chatID),
 		logger.String("message", message))
 	return p.tgClient.SendMessage(chatID, message)
-}
-
-func (p *TelegramMessageProcessor) parseMessageArgs(messageText string) (command, arg1, arg2 string) {
-	parts := strings.Fields(messageText)
-	if len(parts) == 0 {
-		return "", "", ""
-	}
-
-	command = parts[0]
-	if len(parts) > 1 {
-		arg1 = parts[1]
-	}
-	if len(parts) > 2 {
-		arg2 = parts[2]
-	}
-	return command, arg1, arg2
-}
-
-func (p *TelegramMessageProcessor) parseDate(value string) (time.Time, error) {
-	return time.ParseInLocation("2006-01-02", value, time.Local)
 }

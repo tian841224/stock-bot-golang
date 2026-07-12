@@ -24,6 +24,7 @@ type UserWriter interface {
 	Create(ctx context.Context, user *entity.User) error
 	Update(ctx context.Context, user *entity.User) error
 	Delete(ctx context.Context, userID uint) error
+	UpdateActivity(ctx context.Context, userID uint) error
 }
 
 // SubscriptionRepository 定義訂閱資料存取介面
@@ -144,3 +145,11 @@ type SyncMetadataRepository interface {
 	GetByMarket(ctx context.Context, market string) (*entity.SyncMetadata, error)
 	Upsert(ctx context.Context, metadata *entity.SyncMetadata) error
 }
+
+// SystemStatisticsRepository 定義系統統計資料存取介面
+type SystemStatisticsRepository interface {
+	IncrementVisitCount(ctx context.Context) error
+	GetTotalVisits(ctx context.Context) (int64, error)
+	GetOnlineUsersCount(ctx context.Context, duration time.Duration) (int64, error)
+}
+

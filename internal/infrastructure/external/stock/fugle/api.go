@@ -10,6 +10,7 @@ import (
 
 	"github.com/tian841224/stock-bot/internal/infrastructure/config"
 	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/fugle/dto"
+	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 )
 
 // FugleAPI 定義 Fugle API 的實作
@@ -17,16 +18,18 @@ type FugleAPI struct {
 	baseURL    string
 	client     *http.Client
 	httpHeader http.Header
+	logger     logger.Logger
 }
 
 // NewFugleAPI 建立新的 FugleAPI 實例
-func NewFugleAPI(cfg config.Config) *FugleAPI {
+func NewFugleAPI(cfg config.Config, log logger.Logger) *FugleAPI {
 	return &FugleAPI{
 		baseURL: "https://api.fugle.tw/marketdata/v1.0/stock/",
 		client:  &http.Client{Timeout: 10 * time.Second},
 		httpHeader: http.Header{
 			"X-API-KEY": []string{cfg.FUGLE_API_KEY},
 		},
+		logger: log,
 	}
 }
 
@@ -124,6 +127,8 @@ func (f *FugleAPI) GetStockSnapshotMovers(requestDto dto.FugleMoversRequestDto) 
 }
 
 func getResponse[T any](c *FugleAPI, url string) (response T, err error) {
+	c.logger.Debug("fugle API request", logger.String("url", url))
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return response, err
@@ -132,23 +137,26 @@ func getResponse[T any](c *FugleAPI, url string) (response T, err error) {
 	req.Header = c.httpHeader
 
 	resp, err := c.client.Do(req)
-
 	if err != nil {
+		c.logger.Error("fugle API request failed", logger.String("url", url), logger.Error(err))
 		return response, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return response, fmt.Errorf("外部 API 回應錯誤，狀態碼: %d", resp.StatusCode)
+		c.logger.Error("fugle API returned non-200",
+			logger.String("url", url),
+			logger.Int("status_code", resp.StatusCode))
+		return response, fmt.Errorf("fugle API error, status: %d", resp.StatusCode)
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return response, fmt.Errorf("無法讀取 API 回應: %v", err)
+		return response, fmt.Errorf("failed to read API response: %v", err)
 	}
 
 	if err := json.Unmarshal(bodyBytes, &response); err != nil {
-		return response, fmt.Errorf("無法解析回應 JSON: %v", err)
+		return response, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 
 	return response, nil
