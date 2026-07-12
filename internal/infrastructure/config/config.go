@@ -26,6 +26,12 @@ func LoadConfig() (*Config, error) {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
+	// PORT 未出現在 .env 檔案中時，viper.AutomaticEnv() 不會讓 Unmarshal 取得該值
+	// （AutomaticEnv 只對 Get() 生效），需明確 BindEnv 才能在 Unmarshal 時讀到
+	if err := viper.BindEnv("PORT"); err != nil {
+		return nil, fmt.Errorf("綁定 PORT 環境變數失敗: %w", err)
+	}
+
 	// 將環境變數綁定到結構體
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("解析設定失敗: %w", err)
