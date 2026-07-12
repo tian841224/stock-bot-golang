@@ -7,6 +7,7 @@ import (
 
 	"github.com/tian841224/stock-bot/internal/application/dto"
 	"github.com/tian841224/stock-bot/internal/application/port"
+	logic "github.com/tian841224/stock-bot/internal/domain/service"
 	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 )
 
@@ -162,14 +163,7 @@ func (uc *marketDataUsecase) GetStockPrice(ctx context.Context, symbol string, d
 	prevTradeDateResult := (*prevTradeDateResults)[0]
 
 	// 計算漲跌幅
-	changeAmount := tradeDateResult.ClosePrice - prevTradeDateResult.ClosePrice
-	changeRate := (changeAmount / prevTradeDateResult.ClosePrice) * 100
-	upDownSign := ""
-	if changeAmount > 0 {
-		upDownSign = "+"
-	} else {
-		upDownSign = "-"
-	}
+	changeAmount, changeRate, upDownSign := logic.CalculateStockPerformance(tradeDateResult.ClosePrice, prevTradeDateResult.ClosePrice)
 
 	return &dto.StockPrice{
 		Symbol:         tradeDateResult.Symbol,
