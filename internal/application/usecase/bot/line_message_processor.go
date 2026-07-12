@@ -3,7 +3,6 @@ package bot
 import (
 	"context"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot"
@@ -54,33 +53,17 @@ func (p *LineMessageProcessor) ProcessTextMessage(ctx context.Context, event *li
 		logger.String("user_id", userID),
 		logger.String("message", messageText))
 
-	// 紀錄累計人次與更新活躍時間
-	_ = p.systemStatsRepo.IncrementVisitCount(ctx)
-	user, _ := p.userAccountPort.GetOrCreate(ctx, userID, valueobject.UserTypeLine)
-	if user != nil {
-		_ = p.userAccountPort.UpdateActivity(ctx, user.ID)
-	}
-
-
-	// 確保使用者存在
-	if err := p.ensureUser(ctx, userID); err != nil {
-		log.Error("failed to ensure user exists", logger.Error(err))
-	}
+	// 紀錄累計人次、確保使用者存在並更新活躍時間
+	trackUserActivity(ctx, p.systemStatsRepo, p.userAccountPort, userID, valueobject.UserTypeLine, log)
 
 	// 解析命令和參數
-	command, arg1, arg2 := p.parseMessageArgs(messageText)
+	command, arg1, arg2 := parseMessageArgs(messageText)
 	if command == "" {
 		return p.lineBotClient.ReplyMessage(replyToken, "你說了: "+messageText)
 	}
 
 	// 路由到對應的命令處理器
 	return p.routeCommand(ctx, command, arg1, arg2, replyToken)
-}
-
-// ensureUser 確保使用者存在，不存在則建立
-func (p *LineMessageProcessor) ensureUser(ctx context.Context, userID string) error {
-	_, err := p.userAccountPort.GetOrCreate(ctx, userID, valueobject.UserTypeLine)
-	return err
 }
 
 // routeCommand 路由命令到對應的處理器
@@ -133,7 +116,7 @@ func (p *LineMessageProcessor) handleStockPrice(ctx context.Context, replyToken,
 
 	var datePtr *time.Time
 	if rawDate != "" {
-		parsed, err := p.parseDate(rawDate)
+		parsed, err := parseDate(rawDate)
 		if err != nil {
 			return p.sendError(replyToken, "日期格式錯誤，請使用 YYYY-MM-DD 格式\n例如：2025-12-09")
 		}
@@ -180,24 +163,4 @@ func (p *LineMessageProcessor) handleDailyMarket(ctx context.Context, replyToken
 func (p *LineMessageProcessor) sendError(replyToken, message string) error {
 	p.logger.Info("sending error reply to user", logger.String("reply", message))
 	return p.lineBotClient.ReplyMessage(replyToken, message)
-}
-
-func (p *LineMessageProcessor) parseMessageArgs(messageText string) (command, arg1, arg2 string) {
-	parts := strings.Fields(messageText)
-	if len(parts) == 0 {
-		return "", "", ""
-	}
-
-	command = parts[0]
-	if len(parts) > 1 {
-		arg1 = parts[1]
-	}
-	if len(parts) > 2 {
-		arg2 = parts[2]
-	}
-	return command, arg1, arg2
-}
-
-func (p *LineMessageProcessor) parseDate(value string) (time.Time, error) {
-	return time.ParseInLocation("2006-01-02", value, time.Local)
 }

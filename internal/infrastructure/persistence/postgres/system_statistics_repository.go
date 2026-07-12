@@ -26,8 +26,7 @@ func NewPostgresSystemStatisticsRepository(db *gorm.DB, log logger.Logger) *post
 }
 
 func (r *postgresSystemStatisticsRepository) IncrementVisitCount(ctx context.Context) error {
-	return r.db.WithContext(ctx).Model(&models.SystemStatistics{}).
-		Where("key = ?", "total_interactions").
+	return r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "key"}},
 			DoUpdates: clause.Assignments(map[string]interface{}{"value": gorm.Expr("value + 1")}),
