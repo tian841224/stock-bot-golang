@@ -77,8 +77,12 @@ func main() {
 		healthHandlerInstance := healthHandler.NewHealthHandler(healthUsecaseInstance, appLogger)
 		router.GET("/health", healthHandlerInstance.HealthCheck)
 
-		appLogger.Info("health check server started", logger.String("port", "8081"))
-		if err := router.Run(":8081"); err != nil {
+		port := cfg.PORT
+		if port == 0 {
+			port = 8081
+		}
+		appLogger.Info("health check server started", logger.Int("port", port))
+		if err := router.Run(fmt.Sprintf(":%d", port)); err != nil {
 			appLogger.Error("health check server start failed", logger.Error(err))
 		}
 	}()

@@ -19,6 +19,7 @@ type TelegramMessageProcessor struct {
 	tgCommandUsecase TelegramCommandUsecase
 	userAccountPort  port.UserAccountPort
 	tgClient         *tgbotapi.TgBotClient
+	systemStatsRepo  port.SystemStatisticsRepository
 	logger           logger.Logger
 }
 
@@ -26,12 +27,14 @@ func NewTelegramMessageProcessor(
 	tgCommandUsecase TelegramCommandUsecase,
 	userAccountPort port.UserAccountPort,
 	tgClient *tgbotapi.TgBotClient,
+	systemStatsRepo port.SystemStatisticsRepository,
 	log logger.Logger,
 ) *TelegramMessageProcessor {
 	return &TelegramMessageProcessor{
 		tgCommandUsecase: tgCommandUsecase,
 		userAccountPort:  userAccountPort,
 		tgClient:         tgClient,
+		systemStatsRepo:  systemStatsRepo,
 		logger:           log,
 	}
 }
@@ -50,6 +53,14 @@ func (p *TelegramMessageProcessor) ProcessUpdate(ctx context.Context, update *tg
 	log.Info("received telegram message",
 		logger.Int64("chat_id", chatID),
 		logger.String("message", messageText))
+
+	// 紀錄累計人次與更新活躍時間
+	_ = p.systemStatsRepo.IncrementVisitCount(ctx)
+	user, _ := p.userAccountPort.GetOrCreate(ctx, strconv.FormatInt(chatID, 10), valueobject.UserTypeTelegram)
+	if user != nil {
+		_ = p.userAccountPort.UpdateActivity(ctx, user.ID)
+	}
+
 
 	// 解析命令和參數
 	command, arg1, arg2 := p.parseMessageArgs(messageText)

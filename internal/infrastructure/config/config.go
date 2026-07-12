@@ -31,6 +31,8 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("解析設定失敗: %w", err)
 	}
 
+	config.normalize()
+
 	// 驗證配置
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("配置驗證失敗: %w", err)

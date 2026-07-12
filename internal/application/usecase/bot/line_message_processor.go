@@ -18,6 +18,7 @@ type LineMessageProcessor struct {
 	lineCommandUsecase LineCommandUsecase
 	userAccountPort    port.UserAccountPort
 	lineBotClient      *linebotInfra.LineBotClient
+	systemStatsRepo    port.SystemStatisticsRepository
 	logger             logger.Logger
 }
 
@@ -25,12 +26,14 @@ func NewLineMessageProcessor(
 	lineCommandUsecase LineCommandUsecase,
 	userAccountPort port.UserAccountPort,
 	lineBotClient *linebotInfra.LineBotClient,
+	systemStatsRepo port.SystemStatisticsRepository,
 	log logger.Logger,
 ) *LineMessageProcessor {
 	return &LineMessageProcessor{
 		lineCommandUsecase: lineCommandUsecase,
 		userAccountPort:    userAccountPort,
 		lineBotClient:      lineBotClient,
+		systemStatsRepo:    systemStatsRepo,
 		logger:             log,
 	}
 }
@@ -50,6 +53,14 @@ func (p *LineMessageProcessor) ProcessTextMessage(ctx context.Context, event *li
 	log.Info("received LINE message",
 		logger.String("user_id", userID),
 		logger.String("message", messageText))
+
+	// 紀錄累計人次與更新活躍時間
+	_ = p.systemStatsRepo.IncrementVisitCount(ctx)
+	user, _ := p.userAccountPort.GetOrCreate(ctx, userID, valueobject.UserTypeLine)
+	if user != nil {
+		_ = p.userAccountPort.UpdateActivity(ctx, user.ID)
+	}
+
 
 	// 確保使用者存在
 	if err := p.ensureUser(ctx, userID); err != nil {

@@ -73,6 +73,7 @@ func main() {
 	subscriptionSymbolRepo := repository.NewSubscriptionSymbolRepository(gormDB, appLogger)
 	featureReader, _ := repository.NewFeatureRepository(gormDB, appLogger)
 	syncMetadataRepo := repository.NewSyncMetadataRepository(gormDB, appLogger)
+	systemStatsRepo := repository.NewPostgresSystemStatisticsRepository(gormDB, appLogger)
 	appLogger.Info("feature repository initialized")
 
 	// ============================================================
@@ -215,6 +216,7 @@ func main() {
 		tgCommandUsecase,
 		userRepo,
 		tgClient,
+		systemStatsRepo,
 		appLogger,
 	)
 
@@ -222,6 +224,7 @@ func main() {
 		lineCommandUsecase,
 		userRepo,
 		lineClient,
+		systemStatsRepo,
 		appLogger,
 	)
 	appLogger.Info("message processor layer initialized")
@@ -244,7 +247,12 @@ func main() {
 
 	// 在 goroutine 中啟動服務器
 	go func() {
-		if err := router.Run(":8080"); err != nil {
+		port := cfg.PORT
+		if port == 0 {
+			port = 8080
+		}
+		appLogger.Info("server starting", logger.Int("port", port))
+		if err := router.Run(fmt.Sprintf(":%d", port)); err != nil {
 			appLogger.Fatal("HTTP server start failed", logger.Error(err))
 		}
 	}()

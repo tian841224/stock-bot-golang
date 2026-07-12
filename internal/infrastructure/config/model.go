@@ -26,6 +26,7 @@ type Config struct {
 	IMGBB_API_KEY               string `mapstructure:"IMGBB_API_KEY"`
 	DB_PORT                     int    `mapstructure:"DB_PORT"`
 	DB_LOG_MODE                 bool   `mapstructure:"DB_LOG"`
+	PORT                        int    `mapstructure:"PORT"`
 }
 
 // Validate 驗證配置的必要欄位
