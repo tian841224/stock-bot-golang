@@ -12,7 +12,9 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-const asyncProcessingTimeout = 30 * time.Second
+// 部分指令會串連多個外部 API 呼叫（每個最長 10 秒）與圖表產生/上傳，
+// 30 秒在慢速情況下偏緊，容易讓耗時較長的指令被中途取消卻無任何回覆，故拉寬至 60 秒。
+const asyncProcessingTimeout = 60 * time.Second
 
 type telegramUpdateProcessor interface {
 	ProcessUpdate(ctx context.Context, update *tgbotapi.Update) error

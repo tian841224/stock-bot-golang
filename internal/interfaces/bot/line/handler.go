@@ -11,7 +11,9 @@ import (
 	logger "github.com/tian841224/stock-bot/internal/infrastructure/logging"
 )
 
-const asyncProcessingTimeout = 30 * time.Second
+// 部分指令會串連多個外部 API 呼叫（每個最長 10 秒）與圖表產生/上傳，
+// 30 秒在慢速情況下偏緊，容易讓耗時較長的指令被中途取消卻無任何回覆，故拉寬至 60 秒。
+const asyncProcessingTimeout = 60 * time.Second
 
 type lineMessageProcessor interface {
 	ProcessTextMessage(ctx context.Context, event *linebot.Event, message *linebot.TextMessage) error
