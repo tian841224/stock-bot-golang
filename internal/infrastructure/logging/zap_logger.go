@@ -132,10 +132,13 @@ func (l *zapLogger) ZapLogger() *zap.Logger {
 	return l.logger
 }
 
-// ExtractZapLogger 從 Logger interface 中提取底層 *zap.Logger（若可用）
+// ExtractZapLogger 從 Logger interface 中提取底層 *zap.Logger（若可用）。
+// 底層 logger 是以 AddCallerSkip(1) 建立（用於補償 zapLogger 包裝方法多出的一層呼叫堆疊）；
+// 這裡取出的 logger 會直接被第三方套件（如 ginzap）呼叫、不再經過該包裝層，
+// 因此需以 AddCallerSkip(-1) 抵銷，避免 caller 欄位多算一層而指錯位置。
 func ExtractZapLogger(l Logger) (*zap.Logger, bool) {
 	if zl, ok := l.(*zapLogger); ok {
-		return zl.logger, true
+		return zl.logger.WithOptions(zap.AddCallerSkip(-1)), true
 	}
 	return nil, false
 }
