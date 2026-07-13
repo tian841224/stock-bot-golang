@@ -58,9 +58,6 @@
   四個獨立 health checker(`api_checker` / `database_checker` / `resource_monitor` / `sync_status_checker`,
   已被 `health_checker.go` 內聯取代)、`pkg/errors`。
 - `persistence/postgres.go` 移除向後相容全域 `db` 變數與 `GetDB` / `InitDB` / `Close`。
-- **外部 API 死方法 + 專屬 DTO**:finmindtrade 8 個(匯率 / 股利 / 財報 / 月營收 / 各項指標 /
-  美股股價 / 個股分析 / 分析圖)、fugle 3 個(即時報價 / 盤中 K 線 / 漲跌幅快照)、twse 1 個(盤後量)。
-  *保留* fugle `candles.go`(live 的 `GetStockHistoricalCandles` 共用)。
 - `telegram_formatter.go` 只保留在用的 `FormatStockNews`。
 - 跨 port / adapter / usecase / dto 四層皆無呼叫的 `GetUserSubscriptionDetail`。
 - 零散 helper:`domain/error` 未用建構子與 `IsNotFound` / `IsInvalidArgument`、
@@ -71,7 +68,16 @@
 > **保留** `model/` 下無 repository 引用的 model(如 `NotificationDelivery`):它們在 `init()` 中
 > 透過 `RegisterModel` 註冊給 AutoMigrate,屬 DB schema 意圖,移除會刪表。
 
-合計移除約 2,000 行。
+> **方法論限制與修正**:最初這次清理也移除了 12 個外部 API 方法(finmindtrade 8 個、
+> fugle 3 個、twse 1 個)與其專屬 DTO,判斷依據是「`deadcode` 工具 + 全庫 grep 皆為零呼叫點」。
+> 但零呼叫點只能證明「目前沒有東西呼叫」,無法分辨這是「舊功能殘骸」還是「已先串好、
+> 尚未接上層邏輯的預備工作」——兩者在靜態分析下完全無法區分,只有作者知道意圖。
+> 這批方法屬於後者(先把 API 串好、規劃中尚未串接),已於後續復原,詳見附註。
+> 順帶一提:這批方法本來就不會被 `deadcode` CLI 或 `golangci-lint` 的 `unused` 檢查標記——
+> 兩者對「已匯出、且所屬具體型別仍被建構並傳遞」的方法皆有已知盲點,只能靠 grep 零呼叫點
+> 人工判斷,這也是為何需要作者確認意圖而非只信工具結果。
+
+合計移除約 1,300 行(死碼實際淨額,已扣除復原的外部 API 方法)。
 
 ### 3.2 命名修正(`refactor(naming)`)
 

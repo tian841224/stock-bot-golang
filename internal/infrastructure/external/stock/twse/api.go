@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/tian841224/stock-bot/internal/infrastructure/external/stock/twse/dto"
@@ -50,6 +52,46 @@ func (t *TwseAPI) GetTopVolumeItems() (dto.TopVolumeItemsResponseDto, error) {
 	var response dto.TopVolumeItemsResponseDto
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return dto.TopVolumeItemsResponseDto{}, fmt.Errorf("failed to parse response JSON: %v", err)
+	}
+	return response, nil
+}
+
+// GetAfterTradingVolume 盤後資訊 - 依股票代碼查詢
+func (t *TwseAPI) GetAfterTradingVolume(symbol string, date string) (dto.AfterTradingVolumeRawResponseDto, error) {
+	u, err := url.Parse(t.baseURL + "/afterTrading/MI_INDEX")
+	if err != nil {
+		return dto.AfterTradingVolumeRawResponseDto{}, err
+	}
+	q := u.Query()
+	if strings.TrimSpace(date) != "" {
+		q.Set("date", date)
+	}
+	q.Set("type", "ALLBUT0999")
+	u.RawQuery = q.Encode()
+
+	t.logger.Debug("twse API request", logger.String("url", u.String()), logger.String("symbol", symbol))
+
+	req, err := t.getRequest(u.String())
+	if err != nil {
+		return dto.AfterTradingVolumeRawResponseDto{}, err
+	}
+	resp, err := t.client.Do(req)
+	if err != nil {
+		t.logger.Error("twse API request failed", logger.String("url", u.String()), logger.Error(err))
+		return dto.AfterTradingVolumeRawResponseDto{}, fmt.Errorf("failed to connect to TWSE API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.logger.Error("twse API returned non-200",
+			logger.String("url", u.String()),
+			logger.Int("status_code", resp.StatusCode))
+		return dto.AfterTradingVolumeRawResponseDto{}, fmt.Errorf("TWSE API error, status: %d", resp.StatusCode)
+	}
+
+	var response dto.AfterTradingVolumeRawResponseDto
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return dto.AfterTradingVolumeRawResponseDto{}, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	return response, nil
 }
