@@ -22,15 +22,6 @@ func NewSubscriptionType(value int) (SubscriptionType, error) {
 	return st, nil
 }
 
-// SubscriptionTypeMap mapping table for subscription types
-var SubscriptionTypeMap = map[string]SubscriptionType{
-	"0": SubscriptionTypeDefault,
-	"1": SubscriptionTypeStockInfo,
-	"2": SubscriptionTypeStockNews,
-	"3": SubscriptionTypeDailyMarketInfo,
-	"4": SubscriptionTypeTopVolumeItems,
-}
-
 // GetName returns the name of the subscription type
 func (s SubscriptionType) GetName() string {
 	switch s {
@@ -47,12 +38,6 @@ func (s SubscriptionType) GetName() string {
 	default:
 		return "Default"
 	}
-}
-
-// ParseSubscriptionType parses subscription type from input string
-func ParseSubscriptionType(input string) (SubscriptionType, bool) {
-	item, exists := SubscriptionTypeMap[input]
-	return item, exists
 }
 
 // IsValid 驗證訂閱類型是否有效

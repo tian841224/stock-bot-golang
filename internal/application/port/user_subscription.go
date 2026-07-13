@@ -12,8 +12,6 @@ type UserSubscriptionPort interface {
 	GetUserSubscriptionItemList(ctx context.Context, userID uint) ([]*dto.UserSubscriptionItem, error)
 	// 取得使用者訂閱股票列表
 	GetUserSubscriptionStockList(ctx context.Context, userID uint) ([]*dto.UserSubscriptionStock, error)
-	// 取得使用者訂閱詳細資料
-	GetUserSubscriptionDetail(ctx context.Context, userID uint) (*dto.UserSubscriptionDetail, error)
 	// 新增使用者訂閱項目
 	AddUserSubscriptionItem(ctx context.Context, userID uint, item valueobject.SubscriptionType) error
 	// 新增使用者訂閱股票

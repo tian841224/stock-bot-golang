@@ -11,7 +11,6 @@ import (
 type UserSubscriptionUsecase interface {
 	GetUserSubscriptionItemList(ctx context.Context, userID uint) ([]*dto.UserSubscriptionItem, error)
 	GetUserSubscriptionStockList(ctx context.Context, userID uint) ([]*dto.UserSubscriptionStock, error)
-	GetUserSubscriptionDetail(ctx context.Context, userID uint) (*dto.UserSubscriptionDetail, error)
 	AddUserSubscriptionItem(ctx context.Context, userID uint, item valueobject.SubscriptionType) (string, error)
 	AddUserSubscriptionStock(ctx context.Context, userID uint, stockSymbol string) (string, error)
 	DeleteUserSubscriptionItem(ctx context.Context, userID uint, item valueobject.SubscriptionType) (string, error)
@@ -46,22 +45,6 @@ func (u *userSubscriptionUsecase) GetUserSubscriptionStockList(ctx context.Conte
 	return u.userSubscriptionPort.GetUserSubscriptionStockList(ctx, userID)
 }
 
-func (u *userSubscriptionUsecase) GetUserSubscriptionDetail(ctx context.Context, userID uint) (*dto.UserSubscriptionDetail, error) {
-	userSubscriptionItemList, err := u.userSubscriptionPort.GetUserSubscriptionItemList(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	userSubscriptionStockList, err := u.userSubscriptionPort.GetUserSubscriptionStockList(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dto.UserSubscriptionDetail{
-		Items:  userSubscriptionItemList,
-		Stocks: userSubscriptionStockList,
-	}, nil
-}
 func (u *userSubscriptionUsecase) AddUserSubscriptionItem(ctx context.Context, userID uint, item valueobject.SubscriptionType) (string, error) {
 	userSubscriptionList, err := u.userSubscriptionPort.GetUserSubscriptionItemList(ctx, userID)
 	if err != nil {

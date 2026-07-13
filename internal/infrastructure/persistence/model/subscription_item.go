@@ -11,15 +11,6 @@ const (
 	SubscriptionItemTopVolumeItems  SubscriptionItem = 4
 )
 
-// SubscriptionItemMap mapping table for subscription items
-var SubscriptionItemMap = map[string]SubscriptionItem{
-	"0": SubscriptionItemDefault,
-	"1": SubscriptionItemStockInfo,
-	"2": SubscriptionItemStockNews,
-	"3": SubscriptionItemDailyMarketInfo,
-	"4": SubscriptionItemTopVolumeItems,
-}
-
 // GetName returns the name of the subscription item
 func (s SubscriptionItem) GetName() string {
 	switch s {
@@ -36,10 +27,4 @@ func (s SubscriptionItem) GetName() string {
 	default:
 		return "Default"
 	}
-}
-
-// ParseSubscriptionItem parses subscription item from input string
-func ParseSubscriptionItem(input string) (SubscriptionItem, bool) {
-	item, exists := SubscriptionItemMap[input]
-	return item, exists
 }
