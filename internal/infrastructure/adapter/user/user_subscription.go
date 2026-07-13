@@ -92,23 +92,6 @@ func (p *userSubscriptionGateway) GetUserSubscriptionStockList(ctx context.Conte
 	return stocks, nil
 }
 
-func (p *userSubscriptionGateway) GetUserSubscriptionDetail(ctx context.Context, userID uint) (*dto.UserSubscriptionDetail, error) {
-	userSubscriptionItemList, err := p.GetUserSubscriptionItemList(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	userSubscriptionStockList, err := p.GetUserSubscriptionStockList(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dto.UserSubscriptionDetail{
-		Items:  userSubscriptionItemList,
-		Stocks: userSubscriptionStockList,
-	}, nil
-}
-
 func (p *userSubscriptionGateway) AddUserSubscriptionItem(ctx context.Context, userID uint, item valueobject.SubscriptionType) error {
 	// 將 SubscriptionType 轉換為 Feature Code（字串格式）
 	featureCode := strconv.Itoa(int(item))

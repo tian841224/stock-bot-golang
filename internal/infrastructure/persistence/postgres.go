@@ -110,11 +110,8 @@ func (d *postgresDatabase) createDatabaseIfNotExists(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if closeErr := sqlDB.Close(); closeErr != nil {
-			// 忽略關閉錯誤，因為這只是用於檢查資料庫的臨時連線
-		}
-	}()
+	// 忽略關閉錯誤，因為這只是用於檢查資料庫的臨時連線
+	defer func() { _ = sqlDB.Close() }()
 
 	var exists bool
 	query := "SELECT EXISTS(SELECT datname FROM pg_catalog.pg_database WHERE datname = $1)"
@@ -131,34 +128,4 @@ func (d *postgresDatabase) createDatabaseIfNotExists(cfg *config.Config) error {
 	}
 
 	return nil
-}
-
-// 向後相容的全域變數和函數
-var db *gorm.DB
-
-// GetDB 回傳資料庫連線實例（向後相容）
-func GetDB() *gorm.DB {
-	return db
-}
-
-// InitDB 初始化資料庫（向後相容）
-func InitDB(cfg *config.Config) error {
-	database := NewDatabase()
-	if err := database.Init(cfg); err != nil {
-		return err
-	}
-	db = database.GetDB()
-	return nil
-}
-
-// Close 關閉資料庫連線（向後相容）
-func Close() error {
-	if db == nil {
-		return nil
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		return err
-	}
-	return sqlDB.Close()
 }

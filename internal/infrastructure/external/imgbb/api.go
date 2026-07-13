@@ -101,7 +101,9 @@ func (c *ImgBBClient) UploadFromFile(file io.Reader, filename string, options *U
 		}
 	}
 
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("關閉 multipart writer 失敗: %w", err)
+	}
 
 	// 建立 POST 請求
 	req, err := http.NewRequest("POST", ImgBBBaseURL, &buf)

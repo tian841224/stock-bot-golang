@@ -57,7 +57,7 @@ func main() {
 	if err := db.Init(cfg); err != nil {
 		appLogger.Fatal("failed to init database", logger.Error(err))
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	gormDB := db.GetDB()
 

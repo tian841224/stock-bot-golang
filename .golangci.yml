@@ -1,0 +1,12 @@
+version: "2"
+
+# golangci-lint 設定
+# 說明:排除兩類「忽略回傳值屬慣例、非缺陷」的 errcheck 誤報,其餘檢查維持預設。
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        # 繪圖至記憶體影像緩衝,回傳的錯誤在此渲染流程中無可行的處理方式
+        - (*github.com/golang/freetype.Context).DrawString
+        # defer 清理用的 Close():關閉已讀取完畢的 response body / 臨時連線,錯誤無需處理
+        - (io.Closer).Close

@@ -57,19 +57,14 @@ func NewFontLoader() *FontLoader {
 func (fl *FontLoader) LoadChineseFont() (*truetype.Font, error) {
 	// 先嘗試直接路徑載入
 	for _, path := range fl.FontPaths {
-		// logger.Log.Info("嘗試載入字型", zap.String("path", path))
 		if font, err := fl.loadFontFromPath(path); err == nil {
-			// logger.Log.Info("成功載入字型", zap.String("path", path))
 			return font, nil
 		}
 
 		// 再嘗試使用字型名稱查找 (優先粗體)
 		for _, name := range fl.FontNames {
-			// logger.Log.Info("嘗試查找字型", zap.String("name", name))
 			if fontPath, err := findfont.Find(name); err == nil {
-				// logger.Log.Info("找到字型路徑", zap.String("name", name), zap.String("path", fontPath))
 				if font, err := fl.loadFontFromPath(fontPath); err == nil {
-					//logger.Log.Info("成功載入字型", zap.String("name", name), zap.String("path", fontPath))
 					return font, nil
 				}
 			}

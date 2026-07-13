@@ -75,7 +75,7 @@ func (uc *marketDataUsecase) GetStockPerformance(ctx context.Context, symbol str
 	return &dto.StockPerformance{
 		Symbol: stock.Symbol,
 		Name:   stock.Name,
-		Data:   make([]dto.StockPerformanceData, len(result)),
+		Data:   result,
 	}, nil
 }
 
@@ -130,6 +130,12 @@ func (uc *marketDataUsecase) GetStockPrice(ctx context.Context, symbol string, d
 	if err != nil {
 		uc.logger.Error("failed to get latest trade dates", logger.Error(err))
 		return nil, fmt.Errorf("無法取得最近交易日")
+	}
+
+	// 需要當日與前一交易日兩筆資料才能計算漲跌幅
+	if len(tradeDates) < 2 {
+		uc.logger.Warn("insufficient trade dates", logger.String("symbol", symbol), logger.Int("count", len(tradeDates)))
+		return nil, fmt.Errorf("查無足夠的交易日資料，請稍後再試")
 	}
 
 	tradeDate := tradeDates[len(tradeDates)-1]

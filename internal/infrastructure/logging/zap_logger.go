@@ -44,11 +44,6 @@ func Int64(key string, value int64) Field {
 	return zap.Int64(key, value)
 }
 
-// Float64 建立浮點數欄位
-func Float64(key string, value float64) Field {
-	return zap.Float64(key, value)
-}
-
 // Bool 建立布林欄位
 func Bool(key string, value bool) Field {
 	return zap.Bool(key, value)

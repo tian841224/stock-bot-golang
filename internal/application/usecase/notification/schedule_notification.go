@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"go.uber.org/multierr"
@@ -49,12 +50,18 @@ func (u *scheduleHandlerUsecase) RunScheduledTasks(ctx context.Context) error {
 		u.log.Info("正在執行排程任務...", logger.String("task", task.Name))
 
 		wg.Add(1)
-		go func(t func(context.Context) error) {
+		go func(name string, t func(context.Context) error) {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					u.log.Error("排程任務發生 panic", logger.String("task", name), logger.Any("recover", r))
+					errChan <- fmt.Errorf("任務 %s 發生 panic: %v", name, r)
+				}
+			}()
 			if err := t(ctx); err != nil {
 				errChan <- err
 			}
-		}(task.Func)
+		}(task.Name, task.Func)
 	}
 
 	wg.Wait()
