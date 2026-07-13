@@ -31,9 +31,10 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 	}
 
 	httpCode := 200
-	if status.Status == "unhealthy" {
+	switch status.Status {
+	case "unhealthy":
 		httpCode = 503
-	} else if status.Status == "degraded" {
+	case "degraded":
 		httpCode = 200
 	}
 

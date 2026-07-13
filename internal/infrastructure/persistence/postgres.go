@@ -110,11 +110,8 @@ func (d *postgresDatabase) createDatabaseIfNotExists(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if closeErr := sqlDB.Close(); closeErr != nil {
-			// 忽略關閉錯誤，因為這只是用於檢查資料庫的臨時連線
-		}
-	}()
+	// 忽略關閉錯誤，因為這只是用於檢查資料庫的臨時連線
+	defer func() { _ = sqlDB.Close() }()
 
 	var exists bool
 	query := "SELECT EXISTS(SELECT datname FROM pg_catalog.pg_database WHERE datname = $1)"
