@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tian841224/stock-bot/internal/application/dto"
+	"github.com/tian841224/stock-bot/internal/domain/entity"
 )
 
 func TestMarketDataUsecase_GetDailyMarketInfo(t *testing.T) {
@@ -88,5 +89,46 @@ func TestMarketDataUsecase_GetDailyMarketInfo(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestMarketDataUsecase_GetStockPerformance 驗證績效資料會實際被帶入回傳結果，
+// 防止先前「回傳長度正確但內容全為零值的空切片」的回歸。
+func TestMarketDataUsecase_GetStockPerformance(t *testing.T) {
+	expected := []dto.StockPerformanceData{
+		{Period: "1d", PeriodName: "一日", Performance: "1.23%"},
+		{Period: "1w", PeriodName: "一週", Performance: "-4.56%"},
+	}
+
+	mockMarket := &mockMarketDataPort{
+		GetStockPerformanceFunc: func(ctx context.Context, symbol string) ([]dto.StockPerformanceData, error) {
+			return expected, nil
+		},
+	}
+	mockValidation := &mockValidationPort{
+		ValidateSymbolFunc: func(ctx context.Context, symbol string) (*entity.StockSymbol, error) {
+			return &entity.StockSymbol{Symbol: "2330", Name: "台積電"}, nil
+		},
+	}
+
+	uc := NewMarketDataUsecase(mockMarket, mockValidation, nil, &mockLogger{})
+
+	result, err := uc.GetStockPerformance(context.Background(), "2330")
+	if err != nil {
+		t.Fatalf("不期望錯誤但發生錯誤: %v", err)
+	}
+	if result == nil {
+		t.Fatal("期望有結果但為 nil")
+	}
+	if result.Symbol != "2330" || result.Name != "台積電" {
+		t.Errorf("股票代號/名稱不符，實際: %s / %s", result.Symbol, result.Name)
+	}
+	if len(result.Data) != len(expected) {
+		t.Fatalf("績效資料筆數不符，期望 %d，實際 %d", len(expected), len(result.Data))
+	}
+	for i, want := range expected {
+		if result.Data[i] != want {
+			t.Errorf("第 %d 筆績效資料不符，期望 %+v，實際 %+v", i, want, result.Data[i])
+		}
 	}
 }

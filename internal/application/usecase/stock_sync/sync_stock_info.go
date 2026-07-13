@@ -230,7 +230,7 @@ func (s *stockSyncUsecase) worker(ctx context.Context, workerID int, batchChan <
 			logger.Int("batch_id", batchID),
 			logger.Int("batch_size", len(batch)))
 
-		successCount, errorCount, err := s.stockSymbolRepo.BatchUpsert(ctx, batch)
+		successCount, errorCount, err := s.processBatch(ctx, batch)
 
 		resultChan <- batchResult{
 			batchID:      batchID,
@@ -245,6 +245,20 @@ func (s *stockSyncUsecase) worker(ctx context.Context, workerID int, batchChan <
 			logger.Int("success", successCount),
 			logger.Int("failed", errorCount))
 	}
+}
+
+// processBatch 執行單一批次的 upsert，並攔截 panic 避免整個 worker 崩潰。
+// 發生 panic 時將該批次視為全部失敗並回傳錯誤，讓 worker 能繼續處理後續批次。
+func (s *stockSyncUsecase) processBatch(ctx context.Context, batch []*entity.StockSymbol) (successCount, errorCount int, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error("panic recovered in batch upsert", logger.Any("recover", r))
+			successCount = 0
+			errorCount = len(batch)
+			err = fmt.Errorf("批次處理發生 panic: %v", r)
+		}
+	}()
+	return s.stockSymbolRepo.BatchUpsert(ctx, batch)
 }
 
 func (s *stockSyncUsecase) splitIntoBatches(symbols []*entity.StockSymbol, batchSize int) [][]*entity.StockSymbol {
