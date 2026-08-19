@@ -46,10 +46,40 @@ func (f *FinmindTradeAPI) GetTaiwanStockPrice(requestDto dto.FinmindtradeRequest
 	return doRequest[dto.TaiwanStockPriceResponseDto](f, requestDto)
 }
 
+// GetTaiwanExchangeRate 取得台灣匯率
+func (f *FinmindTradeAPI) GetTaiwanExchangeRate(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanExchangeRateResponseDto, err error) {
+	requestDto.DataSet = "TaiwanExchangeRate"
+	return doRequest[dto.TaiwanExchangeRateResponseDto](f, requestDto)
+}
+
+// GetTaiwanStockDividend 取得台灣股票股利
+func (f *FinmindTradeAPI) GetTaiwanStockDividend(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockDividendResponseDto, err error) {
+	requestDto.DataSet = "TaiwanStockDividend"
+	return doRequest[dto.TaiwanStockDividendResponseDto](f, requestDto)
+}
+
+// GetTaiwanStockFinancialStatements 綜合損益表
+func (f *FinmindTradeAPI) GetTaiwanStockFinancialStatements(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockFinancialStatementsResponseDto, err error) {
+	requestDto.DataSet = "TaiwanStockFinancialStatements"
+	return doRequest[dto.TaiwanStockFinancialStatementsResponseDto](f, requestDto)
+}
+
+// GetTaiwanStockMonthRevenue 月營收表
+func (f *FinmindTradeAPI) GetTaiwanStockMonthRevenue(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockMonthRevenueResponseDto, err error) {
+	requestDto.DataSet = "TaiwanStockMonthRevenue"
+	return doRequest[dto.TaiwanStockMonthRevenueResponseDto](f, requestDto)
+}
+
 // GetTaiwanStockTradingDate 台股交易日
 func (f *FinmindTradeAPI) GetTaiwanStockTradingDate(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockTradingDateResponseDto, err error) {
 	requestDto.DataSet = "TaiwanStockTradingDate"
 	return doRequest[dto.TaiwanStockTradingDateResponseDto](f, requestDto)
+}
+
+// GetTaiwanVariousIndicators 台股各種指標(每5秒)
+func (f *FinmindTradeAPI) GetTaiwanVariousIndicators(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanVariousIndicatorsResponseDto, err error) {
+	requestDto.DataSet = "TaiwanVariousIndicators5Seconds"
+	return doRequest[dto.TaiwanVariousIndicatorsResponseDto](f, requestDto)
 }
 
 // GetTaiwanStockSplitPrice 台股分割股價
@@ -71,6 +101,12 @@ func (f *FinmindTradeAPI) GetUSStockInfo() (response dto.USStockInfoResponseDto,
 	return doRequest[dto.USStockInfoResponseDto](f, requestDto)
 }
 
+// GetUSStockPrice 美股盤後股價
+func (f *FinmindTradeAPI) GetUSStockPrice(requestDto dto.FinmindtradeRequestDto) (response dto.USStockPriceResponseDto, err error) {
+	requestDto.DataSet = "USStockPrice"
+	return doRequest[dto.USStockPriceResponseDto](f, requestDto)
+}
+
 // GetTodayInfo 大盤資訊(法人/資券/美股大盤)
 func (f *FinmindTradeAPI) GetTodayInfo() (response dto.TodayInfoResponseDto, err error) {
 	baseURL := "https://api.web.finmindtrade.com/v2/today_info"
@@ -81,6 +117,79 @@ func (f *FinmindTradeAPI) GetTodayInfo() (response dto.TodayInfoResponseDto, err
 		return response, err
 	}
 	req.Header = f.httpHeader
+
+	resp, err := f.client.Do(req)
+	if err != nil {
+		f.logger.Error("finmind API request failed", logger.String("url", baseURL), logger.Error(err))
+		return response, fmt.Errorf("failed to connect to finmind API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		f.logger.Error("finmind API returned non-200",
+			logger.String("url", baseURL),
+			logger.Int("status_code", resp.StatusCode))
+		return response, fmt.Errorf("finmind API error, status: %d", resp.StatusCode)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return response, fmt.Errorf("failed to parse response JSON: %v", err)
+	}
+	return response, nil
+}
+
+// GetTaiwanStockAnalysis 取得台灣股票分析
+func (f *FinmindTradeAPI) GetTaiwanStockAnalysis(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockAnalysisResponseDto, err error) {
+	baseURL := "https://api.web.finmindtrade.com/v2/taiwan_stock_analysis"
+	f.logger.Debug("finmind API request", logger.String("url", baseURL), logger.String("stock_id", requestDto.StockID))
+
+	req, err := http.NewRequest("GET", baseURL, nil)
+	if err != nil {
+		return response, err
+	}
+	req.Header = f.httpHeader
+
+	query := req.URL.Query()
+	if requestDto.StockID != "" {
+		query.Add("stock_id", requestDto.StockID)
+	}
+	req.URL.RawQuery = query.Encode()
+
+	resp, err := f.client.Do(req)
+	if err != nil {
+		f.logger.Error("finmind API request failed", logger.String("url", baseURL), logger.Error(err))
+		return response, fmt.Errorf("failed to connect to finmind API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		f.logger.Error("finmind API returned non-200",
+			logger.String("url", baseURL),
+			logger.Int("status_code", resp.StatusCode))
+		return response, fmt.Errorf("finmind API error, status: %d", resp.StatusCode)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return response, fmt.Errorf("failed to parse response JSON: %v", err)
+	}
+	return response, nil
+}
+
+func (f *FinmindTradeAPI) GetTaiwanStockAnalysisPlot(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockAnalysisPlotResponseDto, err error) {
+	baseURL := "https://api.web.finmindtrade.com/v2/taiwan_stock_analysis_plot"
+	f.logger.Debug("finmind API request", logger.String("url", baseURL), logger.String("stock_id", requestDto.StockID))
+
+	req, err := http.NewRequest("GET", baseURL, nil)
+	if err != nil {
+		return response, err
+	}
+	req.Header = f.httpHeader
+
+	query := req.URL.Query()
+	if requestDto.StockID != "" {
+		query.Add("stock_id", requestDto.StockID)
+	}
+	req.URL.RawQuery = query.Encode()
 
 	resp, err := f.client.Do(req)
 	if err != nil {
